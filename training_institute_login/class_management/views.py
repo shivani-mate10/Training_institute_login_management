@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from .forms import Registerform ,subjectform,courseform
 from django.contrib.auth.decorators import login_required
-from .models import User,Subjects,Courses
+from .models import User,Subjects,Courses, Batches
 from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib.auth import logout
@@ -151,6 +151,12 @@ def update_user(request, id):
             user.role = request.POST.get('role', user.role)
             
             user.save()
+
+            if user.role == "teacher":
+                subject_ids = request.POST.getlist("subjects")
+                user.subjects.set(subject_ids)
+            else:
+                user.subjects.clear()
             
             return JsonResponse({
                 'success': True,
@@ -172,7 +178,8 @@ def update_user(request, id):
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'email': user.email,
-                'role': user.role
+                'role': user.role,
+                "subjects": list(user.subjects.values_list("id", flat=True))
                 
             }
         })
@@ -184,60 +191,34 @@ def update_user(request, id):
 
 #####################################################Subjects###########################################################################
 
+
+
 def subject_list(request):
-
-    query=request.GET.get('q')
-    data=Subjects.objects.filter(is_archive=False)
-
-    if query:
-        data=data.filter(
-            Q(subject_name__icontains=query)).distinct()
-            
-    paginator1=Paginator(data,2)
-    page_number=request.GET.get('page')
-
-    data_per_page=paginator1.get_page(page_number)
-
-    subject_data = [(e, subjectform(instance=e)) for e in data_per_page]
-
-    context = {
-        'subject_data':subject_data,
-        'data_per_page':data_per_page,
-        'query': query
-    }
-
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return render(request, 'subject_table.html', context)
-
-
-    return render(request, 'subject_list.html', context)
-
+        subjects = Subjects.objects.filter(is_archive=False)
+        
+        data = []
+        for subject in subjects:
+            data.append({
+                'id': subject.id,
+                'subject_name': subject.subject_name,
+            })
+        
+        return JsonResponse({'data': data})
+    
+    
+    return render(request, 'subject_list.html')
 
 def add_subject(request):
     if request.method=='POST':
-        form=subjectform(request.POST)
+        subject_name = request.POST.get('subject_name') 
 
-        if form.is_valid:
-            form.save()
+        subject = Subjects.objects.create(subject_name=subject_name)
+        subject.save()
 
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                return JsonResponse({"success":True})
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"success":True})
     return redirect('subject_list')
-
-def update_subject(request,id):
-    subject=get_object_or_404(Subjects,id=id)
-    if request.method=='POST':
-
-        form=subjectform(request.POST,instance=subject)
-        if form.is_valid:
-            form.save()
-            
-        
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                return JsonResponse({"success": True})
-    return redirect('subject_list')
-
-
 
 def delete_subject(request, id):
     if request.method == "POST":
@@ -250,46 +231,68 @@ def delete_subject(request, id):
 
     return redirect('subject_list')
 
+
+def update_subject(request, id):
+    subject = get_object_or_404(Subjects, id=id)
+    
+    if request.method == "POST":
+
+        try:
+            
+            subject_name = request.POST.get('subject_name')
+            if subject_name:
+                subject.subject_name = subject_name
+            
+    
+            subject.save()
+            
+            return JsonResponse({
+                'success': True,
+                
+                'message': 'Subject updated successfully',
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'An error occurred: {str(e)}'
+            }, status=500)
+    
+    elif request.method == "GET":
+        
+        return JsonResponse({
+            'success': True,
+            'subject': {
+                'id': subject.id,
+                'subject_name': subject.subject_name,
+                
+            }
+        })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    }, status=405)
+
+
+            
+
 #######################################################Courses#########################################################
 
 
-
-# def course_list(request):
-    
-#     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        
-#         courses = Courses.objects.filter(is_archived=False).prefetch_related('subjects')
-        
-#         # Prepare data
-#         data = []
-#         for course in courses:
-#             data.append({
-#                 'id': course.id,
-#                 'course_name': course.course_name,
-#                 'subjects': ', '.join([s.subject_name for s in course.subjects.all()]),
-#                 'actions': f'<button class="btn btn-warning btn-sm">Edit</button>'
-#             })
-        
-#         return JsonResponse({'data': data})
-    
-    
-#     return render(request, 'course_list.html')
 
 def course_list(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         courses = Courses.objects.filter(is_archived=False).prefetch_related('subjects')
         
-        # Get search parameter
         search = request.GET.get('search', '')
         if search:
             courses = courses.filter(course_name__icontains=search)
         
-        # Get subject filter
         subject_id = request.GET.get('subject')
         if subject_id:
             courses = courses.filter(subjects__id=subject_id)
         
-        # Rest of your code remains same...
         data = []
         for course in courses:
             data.append({
@@ -301,7 +304,7 @@ def course_list(request):
         
         return JsonResponse({'data': data})
     
-    # Add subjects to context for the filter dropdown
+    
     subjects = Subjects.objects.filter(is_archive=False)
     return render(request, 'course_list.html', {'subjects': subjects})
 
@@ -330,4 +333,61 @@ def delete_course(request, id):
 
 
     return redirect('course_list')
+
+def update_course(request, id):
+    course = get_object_or_404(Courses, id=id)
+    
+    if request.method == "POST":
+        print("POST data received:", request.POST)  
+        print("Subjects received:", request.POST.getlist('subjects[]'))
+        try:
+            
+            course_name = request.POST.get('course_name')
+            if course_name:
+                course.course_name = course_name
+            
+           
+            subject_ids = request.POST.getlist('subjects[]')
+            if subject_ids:
+                subjects = Subjects.objects.filter(id__in=subject_ids)
+                course.subjects.set(subjects)
+            
+            course.save()
+            
+            return JsonResponse({
+                'success': True,
+                
+                'message': 'Course updated successfully',
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'An error occurred: {str(e)}'
+            }, status=500)
+    
+    elif request.method == "GET":
+        
+        return JsonResponse({
+            'success': True,
+            'course': {
+                'id': course.id,
+                'course_name': course.course_name,
+                'subjects': list(course.subjects.values_list('id', flat=True))
+            }
+        })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    }, status=405)
+
+
+#############################################
+def subject_list_ajax(request):
+    subjects = Subjects.objects.filter(is_archive=False).values("id", "subject_name")
+    return JsonResponse({"subjects": list(subjects)})
+###################################Batches#################################
+
+
 

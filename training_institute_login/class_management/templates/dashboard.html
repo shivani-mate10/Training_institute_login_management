@@ -161,6 +161,15 @@
                                 </select>
                             </div>
 
+
+                            <div class="mb-3" id="subjectField" style="display:none;">
+                                <label class="form-label">Assign Subjects</label>
+
+                                <select name="subjects" id="editSubject" class="form-control select2-subject" multiple>
+                                </select>
+                            </div>
+
+
                             <button type="submit" class="btn btn-primary w-100 mt-2">
                                 Update User
                             </button>
@@ -328,6 +337,31 @@
                             $('#edit_last_name').val(response.user.last_name);
                             $('#edit_email').val(response.user.email);
                             $('#edit_role').val(response.user.role);
+                            if (response.user.role === "teacher") {
+                                $("#subjectField").show();
+                                $.ajax({
+                                    url: "/ajax/subjects/",
+                                    type: "GET",
+                                    success: function (data) {
+
+                                        $("#editSubject").empty();
+
+                                        data.subjects.forEach(function (subject) {
+                                            $("#editSubject").append(
+                                                `<option value="${subject.id}">${subject.subject_name}</option>`
+                                            );
+                                        });
+
+                                        
+                                        $("#editSubject").val(response.user.subjects).trigger("change");
+                                    }
+                                });
+
+                            } else {
+                                $("#subjectField").hide();
+                                $("#editSubject").val("");
+                            }
+
 
 
                             $('#editUserModal').modal('show');
