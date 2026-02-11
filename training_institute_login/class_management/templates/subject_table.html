@@ -1,0 +1,33 @@
+<table class="table table-striped table-hover table-bordered" border="1">
+    <thead class="table-dark">
+        <tr>
+            <th>Subject_id</th>
+            <th>Subject_Name</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for subject , sform in subject_data %}
+        <tr>
+            <td>{{subject.id}}</td>
+            <td>{{subject.subject_name}}</td>
+            <td>
+                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ subject.id }}">
+                    Edit
+                </button>
+                |
+                <form action="{% url 'delete_subject' subject.id %}" method="post" class="delete-subject-form"
+                    style="display:inline;">
+                    {% csrf_token %}
+                    <button class="btn btn-danger" type="submit">delete</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No subjects found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
