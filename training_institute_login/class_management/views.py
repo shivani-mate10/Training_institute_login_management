@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from .forms import Registerform ,subjectform,courseform
 from django.contrib.auth.decorators import login_required
-from .models import User,Subjects,Courses, Batches
+from .models import User,Subjects,Courses, Batches,Subject_teacher
 from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib.auth import logout
@@ -410,37 +410,351 @@ def batch_list(request):
     courses = Courses.objects.filter(is_archived=False)  # Get all courses for the dropdown
     return render(request, 'batch_list.html', {'courses': courses})
 
-def add_batch(request):
-    if request.method=='POST':
-        batch_name = request.POST.get('batch_name')
-        start_date = request.POST.get("start_date")
-        duration = request.POST.get("duration")
-        course_id = request.POST.get("course")
+# def add_batch(request):
+#     if request.method=='POST':
+#         batch_name = request.POST.get('batch_name')
+#         start_date = request.POST.get("start_date")
+#         duration = request.POST.get("duration")
+#         course_id = request.POST.get("course")
 
-        course = Courses.objects.get(id=course_id)
+#         course = Courses.objects.get(id=course_id)
 
-        batch=Batches.objects.create(
-            batch_name=batch_name,
-            course=course,
-            start_date=start_date,
-            duration=duration
-        )
-        batch.save()
+#         batch=Batches.objects.create(
+#             batch_name=batch_name,
+#             course=course,
+#             start_date=start_date,
+#             duration=duration
+#         )
+#         batch.save()
 
         
+#         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#             return JsonResponse({"success":True})
+#     return redirect('batch_list')
+
+
+
+def add_batch(request):
+    if request.method == 'POST':
+        try:
+            batch_name = request.POST.get('batch_name')
+            start_date = request.POST.get("start_date")
+            duration = request.POST.get("duration")
+            course_id = request.POST.get("course")
+
+            if not all([batch_name, start_date, duration, course_id]):
+                return JsonResponse({
+                    "status": "error",
+                    "message": "All fields are required!"
+                })
+
+            course = Courses.objects.get(id=course_id)
+
+            batch = Batches.objects.create(
+                batch_name=batch_name,
+                course=course,
+                start_date=start_date,
+                duration=duration
+            )
+
+            subjects = course.subjects.all()
+            mapping_count = 0
+
+            for subject in subjects:
+                teacher_field_name = f"teacher_{subject.id}"
+                teacher_id = request.POST.get(teacher_field_name)
+
+                if teacher_id:
+                    try:
+                       
+                        teacher = User.objects.get(id=teacher_id, role="teacher")
+
+                        Subject_teacher.objects.create(
+                            batch=batch,
+                            subject=subject,
+                            defaults={'teacher':teacher}
+                        )
+                        mapping_count += 1
+
+                    except User.DoesNotExist:
+                        pass
+                else:
+                    Subject_teacher.objects.filter(
+                        batch=batch,
+                        subject=subject
+                    ).delete()
+
+            
+            return JsonResponse({
+                "status": "success",
+                "message": f"Batch Updated successfully with {mapping_count} mappings!"
+            })
+
+            
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": f"An error occurred: {str(e)}"
+            })
+
+
+    return JsonResponse({
+        "status": "error",
+        "message": "Invalid request method"
+    })
+
+
+
+
+def delete_batch(request, id):
+    if request.method == "POST":
+        batch= get_object_or_404(Batches, id=id)
+        batch.is_archived = True
+        batch.save()
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({"success":True})
+            return JsonResponse({"success": True})
+
+
     return redirect('batch_list')
 
 
 
+# def update_batch(request, id):
+#     batch = get_object_or_404(Batches, id=id)
+
+#     if request.method == "POST":
+#         try:
+#             batch.batch_name = request.POST.get("batch_name")
+#             batch.start_date = request.POST.get("start_date")
+#             batch.duration = request.POST.get("duration")
+
+#             course_id = request.POST.get("course")
+#             batch.course = get_object_or_404(Courses, id=course_id)
+#             batch.save()
+
+            
+#             course = batch.course
+#             subjects = course.subjects.all()
+            
+#             mapping_count = 0
+#             for subject in subjects:
+#                 teacher_field_name = f"teacher_{subject.id}"
+#                 teacher_id = request.POST.get(teacher_field_name)
+                
+#                 if teacher_id:
+#                     try:
+#                         teacher = User.objects.get(id=teacher_id, role="teacher")
+                        
+                        
+#                         Subject_teacher.objects.update_or_create(
+#                             batch=batch,
+#                             subject=subject,
+#                             defaults={'teacher': teacher}
+#                         )
+#                         mapping_count += 1
+                        
+#                     except User.DoesNotExist:
+#                         pass
+#                 else:
+                   
+#                     Subject_teacher.objects.filter(
+#                         batch=batch,
+#                         subject=subject
+#                     ).delete()
+
+#             return JsonResponse({
+#                 "status": "success",
+#                 "message": f"Batch updated successfully with {mapping_count} subject-teacher mappings!"
+#             })
+
+#         except Exception as e:
+#             return JsonResponse({
+#                 "status": "error",
+#                 "message": f"An error occurred: {str(e)}"
+#             })
+
+#     return JsonResponse({
+#         "status": "error",
+#         "message": "Invalid request"
+#     })
+
+
+
+def update_batch(request, id):
+
+    batch = get_object_or_404(Batches, id=id)
+
+    
+    if request.method == "GET":
+        return JsonResponse({
+            "success": True,
+            "batch": {
+                "id": batch.id,
+                "batch_name": batch.batch_name,
+                "start_date": batch.start_date.strftime("%Y-%m-%d"),
+                "duration": batch.duration,
+                "course_id": batch.course.id
+                
+            }
+        })
+
+    
+    if request.method == "POST":
+        try:
+            batch.batch_name = request.POST.get("batch_name")
+            batch.start_date = request.POST.get("start_date")
+            batch.duration = request.POST.get("duration")
+            batch.save()
+
+            course = batch.course
+            subjects = course.subjects.all()
+
+            mapping_count = 0
+
+            for subject in subjects:
+
+                teacher_field = f"teacher_{subject.id}"
+                teacher_id = request.POST.get(teacher_field)
+
+                if teacher_id:
+                    teacher = User.objects.get(
+                        id=teacher_id,
+                        role="teacher"   
+                    )
+
+                    Subject_teacher.objects.update_or_create(
+                        batch=batch,
+                        subject=subject,
+                        defaults={"teacher": teacher}
+                    )
+
+                    mapping_count += 1
+
+                else:
+                    Subject_teacher.objects.filter(
+                        batch=batch,
+                        subject=subject
+                    ).delete()
+
+            return JsonResponse({
+                "status": "success",
+                "message": f"Batch updated with {mapping_count} mappings!"
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            })
+
+    return JsonResponse({
+        "status": "error",
+        "message": "Invalid request method"
+    })
+
+
+
+
 def subject_teacher_list(request):
+
+    # course_id = request.GET.get("course_id")
+    # print("COURSE ID RECEIVED:", course_id)
+    # print("COURSE ID RECEIVED:", course_id)
+    # print("TYPE:", type(course_id))
+    # batch_id = request.GET.get("batch_id")
+
+    # course = Courses.objects.get(id=course_id)
+
+    print("FULL GET DATA:", request.GET)
+
     course_id = request.GET.get("course_id")
     batch_id = request.GET.get("batch_id")
+
+    print("COURSE ID RECEIVED:", course_id)
+
     course = Courses.objects.get(id=course_id)
 
+    subjects_data = []
+
+    for sub in course.subjects.all():
+
+        
+        teachers = User.objects.filter(
+            role="teacher",
+            subjects=sub
+        )
+
+        
+        selected_teacher_id = None
+
+        if batch_id:
+            mapping = Subject_teacher.objects.filter(
+                batch_id=batch_id,
+                subject=sub
+            ).first()
+
+            if mapping:
+                selected_teacher_id = mapping.teacher.id
+
+        subjects_data.append({
+            "id": sub.id,
+            "name": sub.subject_name,
+            "selected_teacher": selected_teacher_id,
+            "teachers": [
+                {
+                    "id": t.id,
+                    "name": f"{t.first_name} {t.last_name}"
+                }
+                for t in teachers
+            ]
+        })
+
+    return JsonResponse({"subjects": subjects_data})
 
 
-    return JsonResponse({"course": course})
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+###########################Before mapping teachers#######################
+# def subject_teacher_list(request):
+
+#     course_id = request.GET.get("course_id")
+#     course = Courses.objects.get(id=course_id)
+
+#     subjects_data = []
+
+    
+#     for sub in course.subjects.all():
+
+        
+#         teachers = User.objects.filter(
+#             role="teacher",
+#             subjects=sub
+#         )
+
+#         subjects_data.append({
+#             "id": sub.id,
+#             "name": sub.subject_name,
+#             "teachers": [
+#                 {
+#                     "id": t.id,
+#                     "name": f"{t.first_name} {t.last_name}"
+#                 }
+#                 for t in teachers
+#             ]
+#         })
+
+#     return JsonResponse({"subjects": subjects_data})

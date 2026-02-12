@@ -51,6 +51,12 @@
                     </button>
                 </form>
 
+                <form action="{% url 'batch_list' %}" method="get" class="mb-0">
+                    <button class="btn btn-outline-primary" type="submit">
+                        Batch
+                    </button>
+                </form>
+
             </div>
         </div>
 
@@ -108,6 +114,16 @@
                                 <label class="form-label">Batch Name</label>
                                 <input type="text" name="batch_name" class="form-control" required>
                             </div>
+
+                            <div class="mb-3">
+                                <label class="form-label"> Start Date</label>
+                                <input type="date" name="start_date" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Duration</label>
+                                <input type="text" name="duration" class="form-control" required>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Courses</label>
 
@@ -122,6 +138,8 @@
                                 </select>
                             </div>
 
+                            <div id="addSubjectTeacherBox" class="mt-3"></div>
+
 
 
                             <button type="submit" class="btn btn-primary w-100">Save</button>
@@ -130,6 +148,101 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" id="editBatchModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-primary fw-bold">Edit Batch</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light">
+                        <form id="editBatchForm" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" id="edit_batch_id" name="batch_id">
+
+                            <div class="mb-3">
+                                <label>Batch Name</label>
+                                <input type="text" id="edit_batch_name" name="batch_name" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Start Date</label>
+                                <input type="date" name="start_date" id="editStartDate" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Duration</label>
+                                <input type="text" name="duration" id="editDuration" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Course</label>
+                                <select class="form-select" name="course" id="editCourseDropdown" disabled>
+                                    <option value="">Select Course</option>
+                                    {% for course in courses %}
+                                    <option value="{{ course.id }}">{{ course.course_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div id="editSubjectTeacherBox" class="mt-3"></div>
+
+                            <button type="submit" class="btn btn-primary w-100">Update</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- <div class="modal fade" id="viewModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-primary fw-bold">Batch Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body bg-light">
+
+                        <div class="mb-3">
+                            <label class="form-label">Batch ID</label>
+                            <input type="text" class="form-control" id="viewBatchId" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Batch Name</label>
+                            <input type="text" class="form-control" id="viewBatchName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Course</label>
+                            <input type="text" class="form-control" id="viewCourseName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="text" class="form-control" id="viewStartDate" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Duration</label>
+                            <input type="text" class="form-control" id="viewDuration" readonly>
+                        </div>
+
+
+                        <div class="mt-4">
+                            <h6>Subject-Teacher Mapping</h6>
+                            <div id="viewSubjectTeacherInfo" class="mt-2">
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div> -->
+
+
 
 
 
@@ -166,6 +279,7 @@
                             return `
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
                         <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+                        <button class="btn btn-sm btn-info view-btn" data-id="${row.id}" data-course="${row.course_id}">View</button>
                     `;
                         }
                     }
@@ -203,7 +317,240 @@
                 });
             });
 
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== "") {
+                    let cookies = document.cookie.split(";");
+                    for (let i = 0; i < cookies.length; i++) {
+                        let cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+
+            $('#batchesTable').on('click', '.delete-btn', function () {
+
+                const batchId = $(this).data("id");
+
+
+                if (confirm(`Are you sure you want to delete Batch`)) {
+
+                    $.ajax({
+                        url: `/delete-batch/${batchId}/`,
+                        type: "POST",
+                        headers: {
+                            "X-CSRFToken": getCookie("csrftoken")
+                        },
+
+                        success: function (response) {
+                            if (response.success) {
+                                Swal.fire("Batch Deleted Successfully!")
+
+                                table.ajax.reload(null, false);
+                            } else {
+                                alert("Error: " + response.message);
+                            }
+                        },
+
+                        error: function () {
+                            alert("Server error occurred!");
+                        }
+                    });
+                }
+            });
+
+
+            $("#addCourseDropdown").change(function () {
+
+                let courseId = $(this).val();
+
+                if (courseId === "") {
+                    $("#addSubjectTeacherBox").html("");
+                    return;
+                }
+
+                $("#addSubjectTeacherBox").html("<p>Loading subjects...</p>");
+
+                $.ajax({
+                    url: "/ajax/subject-teacher-list/",
+                    type: "GET",
+                    data: {
+                        course_id: courseId
+                    },
+
+                    success: function (response) {
+
+                        let html = "";
+
+                        response.subjects.forEach(function (sub) {
+
+                            html += `
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            ${sub.name}
+                        </label>
+
+                        <select class="form-select"
+                                name="teacher_${sub.id}">
+                            <option value="">Select Teacher</option>
+                `;
+
+
+                            sub.teachers.forEach(function (t) {
+
+                                html += `
+                        <option value="${t.id}">
+                            ${t.name}
+                        </option>
+                    `;
+                            });
+
+                            html += `
+                        </select>
+                    </div>
+                `;
+                        });
+
+                        $("#addSubjectTeacherBox").html(html);
+                    },
+
+                    error: function () {
+                        $("#addSubjectTeacherBox").html(
+                            "<p class='text-danger'>Error loading teachers</p>"
+                        );
+                    }
+                });
+
+            });
+
+            $('#batchesTable').on('click', '.edit-btn', function () {
+                const batchId = $(this).data('id');
+
+                $.ajax({
+                    url: `/update-batch/${batchId}/`,
+                    type: "GET",
+                    success: function (response) {
+                        if (response.success) {
+
+                            $('#edit_batch_id').val(response.batch.id);
+                            $('#edit_batch_name').val(response.batch.batch_name);
+                            $('#editStartDate').val(response.batch.start_date);
+                            $('#editDuration').val(response.batch.duration);
+
+
+                            $('#editCourseDropdown').val(response.batch.course_id);
+
+                            $('#editBatchModal').modal('show');
+
+
+                            loadSubjectTeachers(response.batch.course_id, batchId);
+
+
+                        } else {
+                            Swal.fire('Error loading Batch data: ' + response.message);
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Server error while loading batch data');
+                    }
+                });
+            });
+
+            function loadSubjectTeachers(courseId, batchId) {
+
+                $("#editSubjectTeacherBox").html("<p>Loading subjects...</p>");
+
+                $.ajax({
+                    url: "/ajax/subject-teacher-list/",
+                    type: "GET",
+                    data: {
+                        course_id: courseId,
+                        batch_id: batchId
+                    },
+
+                    success: function (response) {
+
+                        let html = "";
+
+                        response.subjects.forEach(function (sub) {
+
+                            html += `
+                    <div class="mb-3">
+                        <label class="fw-bold">${sub.name}</label>
+
+                        <select class="form-select" name="teacher_${sub.id}">
+                            <option value="">Select Teacher</option>
+                `;
+
+                            sub.teachers.forEach(function (t) {
+
+                                let selected =
+                                    (t.id == sub.selected_teacher) ? "selected" : "";
+
+                                html += `
+                        <option value="${t.id}" ${selected}>
+                            ${t.name}
+                        </option>
+                    `;
+                            });
+
+                            html += `
+                        </select>
+                    </div>
+                `;
+                        });
+
+                        $("#editSubjectTeacherBox").html(html);
+                    }
+                });
+            }
+
+            $('#editBatchForm').on('submit', function (e) {
+
+                e.preventDefault();
+
+                const batchId = $('#edit_batch_id').val();
+                const formData = $(this).serialize();
+
+                $.ajax({
+                    url: `/update-batch/${batchId}/`,
+                    type: "POST",
+                    data: formData,
+
+                    headers: {
+                        "X-CSRFToken": $('input[name="csrfmiddlewaretoken"]').val()
+                    },
+
+                    success: function (response) {
+
+                        if (response.status === "success") {
+                            Swal.fire("Batch Updated Successfully!");
+
+                            $('#editBatchModal').modal('hide');
+
+                            table.ajax.reload(null, false);
+
+                        } else {
+                            Swal.fire("Error: " + response.message);
+                        }
+                    }
+                });
+            });
+
         
+
+
+
+
+
+
+
+
 
 
         });
@@ -214,3 +561,139 @@
 </body>
 
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ###########Standard Format################ -->
+
+<!-- ('#batchesTable').on('click', '.edit-btn', function () {
+                const courseId = $(this).data('id');
+
+                $.ajax({
+                    url: `/update-batch/${batchId}/`,
+                    type: "GET",
+                    success: function (response) {
+                        if (response.success) {
+
+                            $('#edit_batch_id').val(response.batch.id);
+                            $('#edit_batch_name').val(response.batch.batch_name);
+                            $('#editStartDate').val(response.batch.start_date);
+                            $('#editDuration').val(response.batch.duration);
+
+
+                            $('#editBatchModal').modal('show');
+
+
+                            $("#editSubjectTeacherBox").html("<p>Loading subjects...</p>");
+                            $.ajax({
+                                url: "{% url 'subject_teacher_list' %}",
+                                type: "GET",
+                                data: {
+                                    course_id: courseId,
+                                    batch_id: batchId
+                                },
+                                success: function (response) {
+                                    let html = "";
+
+                                    response.subjects.forEach(function (sub) {
+                                        html += `
+                <div class="mb-3">
+                    <label class="fw-bold">${sub.name}</label>
+                    <select class="form-select" name="teacher_${sub.id}">
+                        <option value="">Select Teacher</option>
+                `;
+
+                                        sub.teachers.forEach(function (t) {
+                                            let selected = (t.id == sub.selected_teacher) ? "selected" : "";
+                                            html += `<option value="${t.id}" ${selected}>${t.name}</option>`;
+                                        });
+
+                                        html += `</select></div>`;
+                                    });
+
+                                    $("#editSubjectTeacherBox").html(html);
+                                }
+                            });
+
+
+                        } else {
+                            Swal.fire('Error loading course data: ' + response.message);
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Server error while loading course data');
+                    }
+                });
+            });
+
+
+            $('#editBatchForm').on('submit', function (e) {
+                e.preventDefault();
+                const batchId = $('#edit_batch_id').val();
+                const formData = $(this).serialize();
+
+                $.ajax({
+                    url: `/update-batch/${batchId}/`,
+                    type: "POST",
+                    data: formData,
+                    headers: {
+                        "X-CSRFToken": $('input[name="csrfmiddlewaretoken"]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            Swal.fire("Batch Updated Successfully!");
+                            $('#editBatchModal').modal('hide');
+                            table.ajax.reload(null, false);
+                        } else {
+                            Swal.fire('Error: ' + response.message);
+                        }
+                    },
+                    error: function (xhr) {
+                        Swal.fire('Server error occurred');
+                        console.log(xhr.responseText);
+                    }
+                });
+            }); -->
+
+
+<!-- // $('#editBatchForm').on('submit', function (e) {
+            //     e.preventDefault();
+            //     const batchId = $('#edit_batch_id').val();
+            //     const formData = $(this).serialize();
+
+            //     $.ajax({
+            //         url: `/update-batch/${batchId}/`,
+            //         type: "POST",
+            //         data: formData,
+            //         headers: {
+            //             "X-CSRFToken": $('input[name="csrfmiddlewaretoken"]').val()
+            //         },
+            //         success: function (response) {
+            //             if (response.success) {
+            //                 Swal.fire("Batch Updated Successfully!");
+            //                 $('#editBatchModal').modal('hide');
+            //                 table.ajax.reload(null, false);}
+            //             else {
+            //                 Swal.fire('Error: ' + response.message);
+            //             }
+            //         },
+            //         error: function (xhr) {
+            //             Swal.fire('Server error occurred');
+            //             console.log(xhr.responseText);
+            //         }
+            //     });
+            // }); -->

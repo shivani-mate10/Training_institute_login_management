@@ -79,7 +79,7 @@ class Batches(models.Model):
 class Subject_teacher(models.Model):
     batch=models.ForeignKey(Batches,on_delete=models.CASCADE,related_name="subject_teachers")
     subject=models.ForeignKey(Subjects, on_delete=models.CASCADE,related_name="batch_subjects")
-    user=models.ForeignKey(User, on_delete=models.CASCADE,related_name="teacher_subjects")
+    teacher=models.ForeignKey(User, on_delete=models.CASCADE,related_name="teacher_subjects")
 
     class Meta:
         db_table='subject_teacher'
