@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import register_user,login_user,dashboard_view,logout_user,users_list,add_user,delete_user,update_user
 from .views import subject_list ,course_list,add_course,delete_course,update_course,add_subject,delete_subject,update_subject
-from .views import subject_list_ajax
+from .views import subject_list_ajax,batch_list,add_batch,subject_teacher_list
 urlpatterns = [
     path("", dashboard_view, name="dashboard"),
     path("register/", register_user, name="register"),
@@ -25,7 +25,10 @@ urlpatterns = [
     
     path("ajax/subjects/", subject_list_ajax, name="subject_list_ajax"),
 
+    path("batch/", batch_list,name="batch_list"),
+    path("batch/add/", add_batch, name="add_batch"),
+    path("subject_teacher/",subject_teacher_list,name="subject_teacher_list"),
 
-    
-    
+
+ 
 ]

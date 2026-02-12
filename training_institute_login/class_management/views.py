@@ -388,6 +388,59 @@ def subject_list_ajax(request):
     subjects = Subjects.objects.filter(is_archive=False).values("id", "subject_name")
     return JsonResponse({"subjects": list(subjects)})
 ###################################Batches#################################
+def batch_list(request):
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        batches = Batches.objects.filter(is_archived=False)
+         
+        
+        data = []
+        for batch in batches:
+            data.append({
+                'id': batch.id,
+                'batch_name': batch.batch_name,
+                'start_date':batch.start_date,
+                'duration':batch.duration,
+                'course':batch.course.course_name
+            })
+        
+        return JsonResponse({'data': data})
+    
+    
+    
+    courses = Courses.objects.filter(is_archived=False)  # Get all courses for the dropdown
+    return render(request, 'batch_list.html', {'courses': courses})
 
+def add_batch(request):
+    if request.method=='POST':
+        batch_name = request.POST.get('batch_name')
+        start_date = request.POST.get("start_date")
+        duration = request.POST.get("duration")
+        course_id = request.POST.get("course")
+
+        course = Courses.objects.get(id=course_id)
+
+        batch=Batches.objects.create(
+            batch_name=batch_name,
+            course=course,
+            start_date=start_date,
+            duration=duration
+        )
+        batch.save()
+
+        
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"success":True})
+    return redirect('batch_list')
+
+
+
+def subject_teacher_list(request):
+    course_id = request.GET.get("course_id")
+    batch_id = request.GET.get("batch_id")
+    course = Courses.objects.get(id=course_id)
+
+
+
+    return JsonResponse({"course": course})
 
 

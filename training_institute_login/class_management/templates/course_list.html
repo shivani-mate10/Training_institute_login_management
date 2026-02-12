@@ -51,6 +51,12 @@
                     </button>
                 </form>
 
+                <form action="{% url 'batch_list' %}" method="get" class="mb-0">
+                    <button class="btn btn-outline-primary" type="submit">
+                       Batch
+                    </button>
+                </form>
+
             </div>
         </div>
 
@@ -293,7 +299,7 @@
 
                         success: function (response) {
                             if (response.success) {
-                                Swal.fire("User Deleted Successfully!")
+                                Swal.fire("Course Deleted Successfully!")
 
                                 table.ajax.reload(null, false);
                             } else {

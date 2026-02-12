@@ -75,6 +75,17 @@ class Batches(models.Model):
     def __str__(self):
         return self.Batch_name
 
+
+class Subject_teacher(models.Model):
+    batch=models.ForeignKey(Batches,on_delete=models.CASCADE,related_name="subject_teachers")
+    subject=models.ForeignKey(Subjects, on_delete=models.CASCADE,related_name="batch_subjects")
+    user=models.ForeignKey(User, on_delete=models.CASCADE,related_name="teacher_subjects")
+
+    class Meta:
+        db_table='subject_teacher'
+
+    def __str__(self):
+        return f"{self.batch.batch_name} - {self.subject.subject_name} - {self.teacher.teacher_name}"
     
 
         
