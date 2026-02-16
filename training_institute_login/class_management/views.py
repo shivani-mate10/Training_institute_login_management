@@ -4,11 +4,20 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from .forms import Registerform ,subjectform,courseform
 from django.contrib.auth.decorators import login_required
-from .models import User,Subjects,Courses, Batches,Subject_teacher
+from .models import User,Subjects,Courses,Marks,Enrollments, Batches,Subject_teacher
 from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib.auth import logout
-from django.core.paginator import Paginator
+from django.http import HttpResponse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+import io
+from datetime import datetime
+from django.contrib import messages
 
 
 @login_required
@@ -49,19 +58,91 @@ def logout_user(request):
     return redirect("login")
 
 
+# def dashboard_view(request):
+#     total_admins = User.objects.filter(role='admin', is_archived=False).count()
+#     total_teachers = User.objects.filter(role='teacher', is_archived=False).count()
+#     total_students = User.objects.filter(role='student', is_archived=False).count()
+#     total_subjects = Subjects.objects.filter(is_archive=False).count()
+#     total_courses = Courses.objects.filter(is_archived=False).count()
+#     total_batches = Batches.objects.filter(is_archived=False).count()
+    
+#     context = {
+#         'total_admins': total_admins,
+#         'total_teachers': total_teachers,
+#         'total_students': total_students,
+#         'total_subjects': total_subjects,
+#         'total_courses': total_courses,
+#         'total_batches': total_batches,
+#     }
+    
+#     return render(request, 'dashboard.html', context)
 
+
+from django.db.models import Count
+
+def dashboard_view(request):
+    
+    total_admins = User.objects.filter(role='admin', is_archived=False).count()
+    total_teachers = User.objects.filter(role='teacher', is_archived=False).count()
+    total_students = User.objects.filter(role='student', is_archived=False).count()
+    total_subjects = Subjects.objects.filter(is_archive=False).count()
+    total_courses = Courses.objects.filter(is_archived=False).count()
+    total_batches = Batches.objects.filter(is_archived=False).count()
+    
+    
+    courses = Courses.objects.filter(is_archived=False)
+    course_data = []
+    
+    for course in courses:
+        
+        batches = Batches.objects.filter(course=course, is_archived=False)
+        batch_count = batches.count()
+        
+        
+        student_count = Enrollments.objects.filter(
+            batch__course=course,  
+            is_archived=False,
+            student__is_archived=False 
+        ).values('student').distinct().count()  
+        
+        course_data.append({
+            'course_name': course.course_name,
+            'batch_count': batch_count,
+            'student_count': student_count,
+        })
+    
+    context = {
+        'total_admins': total_admins,
+        'total_teachers': total_teachers,
+        'total_students': total_students,
+        'total_subjects': total_subjects,
+        'total_courses': total_courses,
+        'total_batches': total_batches,
+        'course_data': course_data,
+    }
+    
+    return render(request, 'dashboard.html', context)
 
 @login_required
-def dashboard_view(request):
-    return render(request, "dashboard.html")
+def user_management(request):
+    roles = User.ROLE_CHOICES
+    return render(request, 'user_management.html', {'roles': roles})
+    
 
 
 @login_required
 def users_list(request):
-    users = User.objects.filter(is_archived=False).values(
-        "id", "first_name", "last_name", "role"
-    )
-
+    
+    users = User.objects.filter(is_archived=False)
+    
+    
+    role_filter = request.GET.get('role')
+    if role_filter:
+        users = users.filter(role=role_filter)
+    
+    
+    users = users.values("id", "first_name", "last_name", "role")
+    
     return JsonResponse({"data": list(users)})
 
 
@@ -391,6 +472,11 @@ def subject_list_ajax(request):
 def batch_list(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         batches = Batches.objects.filter(is_archived=False)
+        course_id = request.GET.get('course')
+
+        if course_id:
+            batches = batches.filter(course_id=course_id)
+
          
         
         data = []
@@ -407,30 +493,11 @@ def batch_list(request):
     
     
     
-    courses = Courses.objects.filter(is_archived=False)  # Get all courses for the dropdown
+    courses = Courses.objects.filter(is_archived=False)  
+    print(f"Total courses with is_archived=False: {courses.count()}")  
+    print("Course names:", [c.course_name for c in courses]) 
     return render(request, 'batch_list.html', {'courses': courses})
 
-# def add_batch(request):
-#     if request.method=='POST':
-#         batch_name = request.POST.get('batch_name')
-#         start_date = request.POST.get("start_date")
-#         duration = request.POST.get("duration")
-#         course_id = request.POST.get("course")
-
-#         course = Courses.objects.get(id=course_id)
-
-#         batch=Batches.objects.create(
-#             batch_name=batch_name,
-#             course=course,
-#             start_date=start_date,
-#             duration=duration
-#         )
-#         batch.save()
-
-        
-#         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-#             return JsonResponse({"success":True})
-#     return redirect('batch_list')
 
 
 
@@ -469,7 +536,7 @@ def add_batch(request):
                        
                         teacher = User.objects.get(id=teacher_id, role="teacher")
 
-                        Subject_teacher.objects.create(
+                        Subject_teacher.objects.update_or_create(
                             batch=batch,
                             subject=subject,
                             defaults={'teacher':teacher}
@@ -594,7 +661,8 @@ def update_batch(request, id):
                 "batch_name": batch.batch_name,
                 "start_date": batch.start_date.strftime("%Y-%m-%d"),
                 "duration": batch.duration,
-                "course_id": batch.course.id
+                "course_id": batch.course.id,
+                "course_name": batch.course.course_name  # Add this to the batch dict
                 
             }
         })
@@ -658,14 +726,7 @@ def update_batch(request, id):
 
 def subject_teacher_list(request):
 
-    # course_id = request.GET.get("course_id")
-    # print("COURSE ID RECEIVED:", course_id)
-    # print("COURSE ID RECEIVED:", course_id)
-    # print("TYPE:", type(course_id))
-    # batch_id = request.GET.get("batch_id")
-
-    # course = Courses.objects.get(id=course_id)
-
+    
     print("FULL GET DATA:", request.GET)
 
     course_id = request.GET.get("course_id")
@@ -711,6 +772,522 @@ def subject_teacher_list(request):
         })
 
     return JsonResponse({"subjects": subjects_data})
+#####################################Enrollment#####################
+
+def enrollment_list(request):
+    students = User.objects.filter(role='student', is_archived=False)
+    batches=Batches.objects.filter(is_archived=False)
+    enrollments = Enrollments.objects.filter(is_archived=False,student__role='student')
+    batch_id = request.GET.get('batch')
+    if batch_id:
+           enrollments = enrollments.filter(batch_id=batch_id)
+
+
+        
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+       
+       
+    
+        data = []
+        for enrollment in enrollments:
+            data.append({
+                'id': enrollment.id,
+                'student_name': enrollment.student.get_full_name() or enrollment.student.username,
+                'batch_name': enrollment.batch.batch_name, 
+                'start_date': enrollment.batch.start_date.strftime("%Y-%m-%d") if enrollment.batch.start_date else "", 
+            })
+        
+        return JsonResponse({'data': data})
+    return render(request, 'enrollment_list.html',{'students': students,'batches': batches})
+
+
+
+
+
+def add_enrollment(request):
+    if request.method == "POST":
+        try:
+            student_id = request.POST.get("student")
+            batch_id = request.POST.get("batch")
+            
+           
+            if not student_id or not batch_id:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Student and Batch are required"
+                })
+            
+            
+            try:
+                student = User.objects.get(id=student_id, role='student', is_archived=False)
+            except User.DoesNotExist:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Invalid student selected"
+                })
+            
+            
+            try:
+                batch = Batches.objects.get(id=batch_id, is_archived=False)
+            except Batches.DoesNotExist:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Invalid batch selected"
+                })
+            
+           
+            if Enrollments.objects.filter(student=student, batch=batch, is_archived=False).exists():
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Student is already enrolled in this batch"
+                })
+            
+            
+            enrollment = Enrollments.objects.create(
+                student=student,
+                batch=batch,
+                is_archived=False
+            )
+            
+            return JsonResponse({
+                "status": "success",
+                "message": "Student enrolled successfully!",
+                "enrollment_id": enrollment.id
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            })
+    
+    return JsonResponse({
+        "status": "error",
+        "message": "Invalid request method"
+    })
+
+
+
+def delete_enrollment(request, id):
+    if request.method == "POST":
+        enrollment= get_object_or_404(Enrollments, id=id)
+        enrollment.is_archived = True
+        enrollment.save()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"success": True})
+
+
+    return redirect('enrollment_list')
+
+
+
+
+def batch_enrollments(request, batch_id):
+    batch = get_object_or_404(Batches, id=batch_id)
+    
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        enrollments = Enrollments.objects.filter(
+            batch=batch,
+            is_archived=False,
+            student__role='student'
+        )
+        
+        data = []
+        for enrollment in enrollments:
+            data.append({
+                'id': enrollment.id,
+                'count': enrollment.id,  
+                'student_name': enrollment.student.get_full_name() or enrollment.student.username,
+                'batch_name': enrollment.batch.batch_name,
+                'course_name': enrollment.batch.course.course_name,
+                'enrollment_id': enrollment.id
+            })
+        
+        return JsonResponse({'data': data})
+    
+    context = {
+        "batch": batch,
+    }
+    return render(request, "batch_enrollments.html", context)
+
+
+
+
+
+
+
+
+   
+
+def add_marks(request, enrollment_id):
+    enrollment = get_object_or_404(Enrollments, id=enrollment_id)
+    batch = enrollment.batch
+    course = batch.course
+    
+    if request.method == "POST":
+        try:
+            
+            subjects = Subjects.objects.filter(courses=course, is_archive=False)
+            
+            
+            for subject in subjects:
+                mark_field = f"mark_{subject.id}"
+                mark_value = request.POST.get(mark_field)
+                
+                if mark_value and mark_value.strip():
+                    try:
+                        mark_int = int(mark_value)
+                        if 0 <= mark_int <= 100:
+                            Marks.objects.update_or_create(
+                                enrollment=enrollment,
+                                course=course,
+                                subject=subject,
+                                defaults={'mark': mark_int}
+                            )
+                    except ValueError:
+                        continue
+            
+            return JsonResponse({
+                "status": "success",
+                "message": "Marks saved successfully!"
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": f"An error occurred: {str(e)}"
+            })
+    
+   
+    subjects = Subjects.objects.filter(courses=course, is_archive=False)
+    
+    existing_marks = Marks.objects.filter(enrollment=enrollment)
+    marks_dict = {mark.subject_id: mark.mark for mark in existing_marks}
+
+    all_marks = [mark.mark for mark in existing_marks]
+    avg_mark = sum(all_marks) / len(all_marks) if all_marks else 0
+    
+    subjects_data = []
+    for subject in subjects:
+        subjects_data.append({
+            "id": subject.id,
+            "name": subject.subject_name,
+            "mark": marks_dict.get(subject.id), 
+        })
+    
+    
+    student_display_name = enrollment.student.get_full_name() or enrollment.student.username
+    
+    return JsonResponse({
+        "student_id": enrollment.student.id,
+        "student_name": student_display_name,  
+        "batch_name": batch.batch_name,
+        "course_name": course.course_name,
+        "subjects": subjects_data,
+        "average_mark": round(avg_mark, 2)
+    })
+
+# ############################################PDF Download ######################################
+
+
+def download_result_pdf(request, enrollment_id):
+    
+    enrollment = get_object_or_404(Enrollments, id=enrollment_id, student__role='student')
+    batch = enrollment.batch
+    course = batch.course
+    student = enrollment.student
+    
+   
+    marks = Marks.objects.filter(enrollment=enrollment).select_related('subject')
+    
+    
+    total_marks = sum(mark.mark for mark in marks)
+    total_subjects = marks.count()
+    percentage = (total_marks / (total_subjects * 100)) * 100 if total_subjects > 0 else 0
+    
+    
+    if percentage >= 35:
+        status = "PASS"
+        status_color = colors.green
+    else:
+        status = "FAIL"
+        status_color = colors.red
+    
+    
+    buffer = io.BytesIO()
+    
+    
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+    
+    
+    elements = []
+    
+    
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    heading_style = styles['Heading2']
+    normal_style = styles['Normal']
+    
+   
+    center_style = ParagraphStyle(
+        'CenterStyle',
+        parent=styles['Normal'],
+        alignment=TA_CENTER,
+        fontSize=12
+    )
+    
+    header_style = ParagraphStyle(
+        'HeaderStyle',
+        parent=styles['Normal'],
+        alignment=TA_CENTER,
+        fontSize=16,
+        textColor=colors.HexColor('#0d6efd'),
+        spaceAfter=20,
+        fontName='Helvetica-Bold'
+    )
+    
+    
+    institute_name = Paragraph("Training Institute", header_style)
+    elements.append(institute_name)
+    
+    
+    result_title = Paragraph("STUDENT RESULT CARD", title_style)
+    elements.append(result_title)
+    elements.append(Spacer(1, 20))
+    
+    
+    info_data = [
+        ["Student Name:", student.get_full_name() or student.username],
+        ["Batch:", batch.batch_name],
+        ["Course:", course.course_name],
+        ["Date:", datetime.now().strftime("%d-%m-%Y")],
+    ]
+    
+    info_table = Table(info_data, colWidths=[1.5*inch, 2.0*inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+    ]))
+    
+    elements.append(info_table)
+    elements.append(Spacer(1, 20))
+    
+    
+    marks_title = Paragraph("Marks", heading_style)
+    elements.append(marks_title)
+    elements.append(Spacer(1, 10))
+    
+    
+    table_data = []
+    table_data.append(["Sr No.", "Subject", "Marks", "Max Marks", "Percentage", "Grade"])
+    
+    for idx, mark in enumerate(marks, 1):
+        subject = mark.subject
+        marks_obtained = mark.mark
+        max_marks = 100
+        subject_percentage = (marks_obtained / max_marks) * 100
+        
+        
+        if subject_percentage >= 90:
+            grade = "A+"
+        elif subject_percentage >= 80:
+            grade = "A"
+        elif subject_percentage >= 70:
+            grade = "B"
+        elif subject_percentage >= 60:
+            grade = "C"
+        elif subject_percentage >= 35:
+            grade = "D"
+        else:
+            grade = "F"
+        
+        table_data.append([
+            idx,
+            subject.subject_name,
+            marks_obtained,
+            max_marks,
+            f"{subject_percentage:.1f}%",
+            grade
+        ])
+    
+    
+    if total_subjects > 0:
+        table_data.append([
+            "",
+            "TOTAL",
+            total_marks,
+            total_subjects * 100,
+            f"{percentage:.1f}%",
+            ""
+        ])
+    
+    
+    marks_table = Table(table_data, colWidths=[0.5*inch, 2*inch, 1*inch, 1*inch, 1*inch, 0.8*inch])
+    marks_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e2e3e5')),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BOX', (0, 0), (-1, -1), 2, colors.black),
+    ]))
+    
+    elements.append(marks_table)
+    elements.append(Spacer(1, 20))
+    
+    
+    summary_data = [
+        ["Total Subjects:", str(total_subjects)],
+        ["Total Marks Obtained:", f"{total_marks}/{total_subjects * 100}"],
+        ["Percentage:", f"{percentage:.2f}%"],
+        ["Status:", status],
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[1.5*inch, 1.5*inch])
+    summary_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('TEXTCOLOR', (1, 3), (1, 3), status_color),
+        ('FONTNAME', (1, 3), (1, 3), 'Helvetica-Bold'),
+        ('FONTSIZE', (1, 3), (1, 3), 12),
+    ]))
+    
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+    
+    # # Signature Section
+    # signature_data = [
+    #     ["", "", "Authorized Signature"],
+    #     ["", "", "_________________"],
+    #     ["", "", "(Coordinator)"],
+    # ]
+    
+    # signature_table = Table(signature_data, colWidths=[2*inch, 2*inch, 2*inch])
+    # signature_table.setStyle(TableStyle([
+    #     ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+    #     ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+    #     ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),
+    #     ('FONTSIZE', (2, 0), (2, 0), 10),
+    #     ('FONTSIZE', (2, 1), (2, 2), 9),
+    # ]))
+    
+    # elements.append(signature_table)
+    # elements.append(Spacer(1, 20))
+    
+    # # Footer
+    # footer_text = f"Generated on: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+    # footer = Paragraph(footer_text, center_style)
+    # elements.append(footer)
+    
+    
+    doc.build(elements)
+    
+    
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Result_{student.get_full_name() or student.username}_{batch.batch_name}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write(pdf)
+    
+    return response
+
+
+############################Email and password########################################
+# @login_required
+# def change_email(request):
+#     if request.method == 'POST':
+#         new_email = request.POST.get('email')
+        
+        
+#         if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
+#             messages.error(request, 'This email is already in use by another account.')
+#             return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+        
+        
+#         request.user.email = new_email
+#         request.user.save()
+#         messages.success(request, 'Your email has been updated successfully.')
+        
+#     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+import json
+
+@login_required
+@require_POST
+def change_email(request):
+    # Check if it's an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            data = json.loads(request.body)
+            new_email = data.get('email')
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data'}, status=400)
+    else:
+        new_email = request.POST.get('email')
+    
+    # Validate email
+    if not new_email:
+        messages.error(request, 'Email address is required.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Email address is required'}, status=400)
+        return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+    
+    # Check if email already exists
+    if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
+        messages.error(request, 'This email is already in use by another account.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'This email is already in use'}, status=400)
+        return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+    
+    # Update email
+    request.user.email = new_email
+    request.user.save()
+    # messages.success(request, 'Your email has been updated successfully.')
+    
+    # Return JSON response for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            # 'message': 'Your email has been updated successfully.',
+            'new_email': new_email
+        })
+    
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -758,3 +1335,120 @@ def subject_teacher_list(request):
 #         })
 
 #     return JsonResponse({"subjects": subjects_data})
+
+
+
+# def add_batch(request):
+#     if request.method=='POST':
+#         batch_name = request.POST.get('batch_name')
+#         start_date = request.POST.get("start_date")
+#         duration = request.POST.get("duration")
+#         course_id = request.POST.get("course")
+
+#         course = Courses.objects.get(id=course_id)
+
+#         batch=Batches.objects.create(
+#             batch_name=batch_name,
+#             course=course,
+#             start_date=start_date,
+#             duration=duration
+#         )
+#         batch.save()
+
+        
+#         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#             return JsonResponse({"success":True})
+#     return redirect('batch_list')
+
+
+
+
+
+
+
+
+
+
+
+
+
+# def batch_enrollments(request, batch_id):
+#     batch = get_object_or_404(Batches, id=batch_id)
+
+#     enrollments = Enrollments.objects.filter(
+#         batch=batch,
+#         is_archived=False
+#     )
+
+#     context = {
+#         "batch": batch,
+#         "enrollments": enrollments
+#     }
+
+#     return render(request, "batch_enrollments.html", context)
+
+
+
+# def add_marks(request, enrollment_id):
+#     enrollment = get_object_or_404(Enrollments, id=enrollment_id)
+#     batch = enrollment.batch
+#     course = batch.course
+    
+#     if request.method == "POST":
+#         try:
+            
+#             subjects = Subjects.objects.filter(courses=course, is_archive=False)
+            
+            
+#             for subject in subjects:
+#                 mark_field = f"mark_{subject.id}"
+#                 mark_value = request.POST.get(mark_field)
+                
+#                 if mark_value and mark_value.isdigit():
+#                     mark_obj, created = Marks.objects.update_or_create(
+#                         enrollment=enrollment,
+#                         course=course,
+#                         subject=subject,
+#                         defaults={'mark': int(mark_value)}
+#                     )
+            
+#             return JsonResponse({
+#                 "status": "success",
+#                 "message": "Marks saved successfully!"
+#             })
+            
+#         except Exception as e:
+#             return JsonResponse({
+#                 "status": "error",
+#                 "message": f"An error occurred: {str(e)}"
+#             })
+    
+    
+#     subjects = Subjects.objects.filter(courses=course, is_archive=False)
+    
+    
+#     existing_marks = Marks.objects.filter(enrollment=enrollment)
+#     marks_dict = {mark.subject.id: mark.mark for mark in existing_marks}
+
+#     all_marks = [mark.mark for mark in existing_marks]
+#     avg_mark = sum(all_marks) / len(all_marks) if all_marks else 0
+    
+#     subjects_data = []
+#     for subject in subjects:
+#         subjects_data.append({
+#             "id": subject.id,
+#             "name": subject.subject_name,
+#             "mark": marks_dict.get(subject.id), 
+#         })
+    
+#     return JsonResponse({
+#         "student_id":enrollment.student.id,
+#         "student_name": enrollment.student.user_name,
+#         "batch_name": batch.batch_name,
+#         "course_name": course.course_name,
+#         "subjects": subjects_data,
+#         "average_mark": round(avg_mark, 2)
+#     })
+
+    
+

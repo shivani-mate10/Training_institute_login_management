@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Management System</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+</head>
+
+<body>
+    
+    {% include 'menu.html' %}
+
+    <div class="container">
+
+
+
+        <div class="row">
+            <div class="col-12 py-4">
+                <h3>Batch: {{ batch.batch_name }}</h3>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 py-4">
+                <h4>Course: {{ batch.course.course_name }}</h4>
+            </div>
+        </div>
+
+
+        <div class="row">
+            <div class="col-12 py-4">
+                <h4>Students Assigned to This Batch</h4>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <table id="enrollmentsTable" class="table table-striped table-hover table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Student Name</th>
+                            <th>Batch</th>
+                            <th>Course</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal fade" id="addMarksModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-primary fw-bold">Add Marks</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <p><strong>Student:</strong> <span id="marksStudentName"></span></p>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Batch:</strong> <span id="marksBatchName"></span></p>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Course:</strong> <span id="marksCourseName"></span></p>
+                            </div>
+                        </div>
+
+                        <hr>
+
+
+                        <form id="addMarksForm" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" id="marksEnrollmentId" name="enrollment_id">
+
+                            <h6 class="mb-3">Enter Marks for the Subjects</h6>
+                            <div id="marksSubjectsContainer">
+                            </div>
+
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary">Save Marks</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="modal fade" id="viewmarkModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-primary fw-bold">Mark Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <p><strong>Student:</strong> <span id="viewmarksStudentName"></span></p>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Batch:</strong> <span id="viewmarksBatchName"></span></p>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Course:</strong> <span id="viewmarksCourseName"></span></p>
+                            </div>
+                        </div>
+
+                        <hr>
+
+
+                        <h6 class="mb-3">Marks Obtained:</h6>
+                        <div id="viewMarksContainer">
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="text/javascript" charset="utf8"
+        src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+
+    <script>
+        $(document).ready(function () {
+
+            var table = $('#enrollmentsTable').DataTable({
+                ajax: {
+                    url: window.location.href,
+                    type: "GET",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                },
+                columns: [
+                    {
+                        data: null,
+                        render: function (data, type, row, meta) {
+                            return meta.row + 1;
+                        }
+                    },
+                    { data: 'student_name' },
+                    { data: 'batch_name' },
+                    { data: 'course_name' },
+                    {
+                        data: null,
+                        render: function (data, type, row) {
+                            const downloadUrl = `/marks/download/${row.enrollment_id}/`;
+                            return `
+                            <button class="btn btn-primary btn-sm add-marks-btn" 
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addMarksModal" 
+                                    data-enrollment-id="${row.enrollment_id}"
+                                    data-student-name="${row.student_name}"
+                                    data-batch-name="${row.batch_name}"
+                                    data-course-name="${row.course_name}">
+                                Add Marks
+                            </button>
+                            |
+                            <button class="btn btn-info btn-sm view-mark-btn" 
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#viewmarkModal" 
+                                    data-enrollment-id="${row.enrollment_id}"
+                                    data-student-name="${row.student_name}"
+                                    data-batch-name="${row.batch_name}"
+                                    data-course-name="${row.course_name}">
+                                Result
+                            </button>
+                            |
+                            <a href="${downloadUrl}" class="btn btn-sm btn-success" target="_blank">
+                                Download Result
+                            </a>
+                        `;
+                        }
+                    }
+                ],
+                pageLength: 10,
+                language: {
+                    emptyTable: "No students enrolled in this batch."
+                }
+            });
+
+
+            $(document).on("click", ".add-marks-btn", function () {
+                const enrollmentId = $(this).data("enrollment-id");
+                const studentName = $(this).data("student-name");
+                const batchName = $(this).data("batch-name");
+                const courseName = $(this).data("course-name");
+
+                $("#marksStudentName").text(studentName);
+                $("#marksBatchName").text(batchName);
+                $("#marksCourseName").text(courseName);
+                $("#marksEnrollmentId").val(enrollmentId);
+
+                loadSubjectsForMarks(enrollmentId);
+            });
+
+            function loadSubjectsForMarks(enrollmentId) {
+                $("#marksSubjectsContainer").html("<p>Loading subjects...</p>");
+
+                $.ajax({
+                    url: `/marks/add/${enrollmentId}/`,
+                    type: "GET",
+                    success: function (response) {
+                        let html = "";
+
+                        if (response.subjects && response.subjects.length > 0) {
+                            response.subjects.forEach(function (subject) {
+                                html += `
+                            <div class="row mb-3 align-items-center">
+                                <div class="col-md-5">
+                                    <label class="form-label fw-semibold">${subject.name}</label>
+                                </div>
+                                <div class="col-md-7">
+                                    <div class="input-group">
+                                        <input type="number" 
+                                               class="form-control" 
+                                               name="mark_${subject.id}" 
+                                               value="${subject.mark || ''}"
+                                               min="0" 
+                                               max="100"
+                                               placeholder="Enter marks (0-100)"
+                                               required>
+                                        <span class="input-group-text">/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                            `;
+                            });
+                        } else {
+                            html = "<p class='text-muted'>No subjects found for this course.</p>";
+                        }
+
+                        $("#marksSubjectsContainer").html(html);
+                    },
+                    error: function () {
+                        $("#marksSubjectsContainer").html("<p class='text-danger'>Failed to load subjects.</p>");
+                    }
+                });
+            }
+
+            $(document).on("submit", "#addMarksForm", function (e) {
+                e.preventDefault();
+
+                const form = $(this);
+                const enrollmentId = $("#marksEnrollmentId").val();
+
+                $.ajax({
+                    url: `/marks/add/${enrollmentId}/`,
+                    type: "POST",
+                    data: form.serialize(),
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                    success: function (response) {
+                        if (response.status === "success") {
+                            $("#addMarksModal").modal("hide");
+                            Swal.fire("Success!", response.message, "success");
+                            form[0].reset();
+                        } else {
+                            Swal.fire("Error!", response.message, "error");
+                        }
+                    },
+                    error: function () {
+                        Swal.fire("Error!", "Failed to save marks.", "error");
+                    }
+                });
+            });
+
+            $(document).on("click", ".view-mark-btn", function () {
+                const enrollmentId = $(this).data("enrollment-id");
+                const studentName = $(this).data("student-name");
+                const batchName = $(this).data("batch-name");
+                const courseName = $(this).data("course-name");
+
+                $("#viewmarksStudentName").text(studentName);
+                $("#viewmarksBatchName").text(batchName);
+                $("#viewmarksCourseName").text(courseName);
+
+                loadMarksForView(enrollmentId);
+            });
+
+            function loadMarksForView(enrollmentId) {
+                $("#viewMarksContainer").html("<p>Loading marks...</p>");
+
+                $.ajax({
+                    url: `/marks/add/${enrollmentId}/`,
+                    type: "GET",
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                    success: function (response) {
+                        let html = "";
+
+                        if (response.subjects && response.subjects.length > 0) {
+                            html = "<div class='list-group'>";
+
+                            response.subjects.forEach(function (subject) {
+                                const mark = subject.mark;
+
+                                if (mark !== null) {
+                                    let gradeBadge = "";
+                                    let statusText = "";
+                                    let badgeColor = "";
+
+                                    if (mark >= 90) {
+                                        gradeBadge = "A+";
+                                        badgeColor = "success";
+                                    } else if (mark >= 80) {
+                                        gradeBadge = "A";
+                                        badgeColor = "success";
+                                    } else if (mark >= 70) {
+                                        gradeBadge = "B";
+                                        badgeColor = "primary";
+                                    } else if (mark >= 60) {
+                                        gradeBadge = "C";
+                                        badgeColor = "info";
+                                    } else if (mark >= 35) {
+                                        gradeBadge = "D";
+                                        badgeColor = "warning";
+                                    } else {
+                                        gradeBadge = "F";
+                                        badgeColor = "danger";
+                                        statusText = "<span class='text-danger ms-2 fw-bold'>(Fail)</span>";
+                                    }
+
+                                    html += `
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="fw-semibold">${subject.name}</span>
+                                            ${statusText}
+                                        </div>
+                                        <div>
+                                            <span class="me-3">${mark}/100</span>
+                                            <span class="badge bg-${badgeColor}">Grade: ${gradeBadge}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                `;
+                                } else {
+                                    html += `
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold">${subject.name}</span>
+                                    <span class="badge bg-secondary rounded-pill">Not graded</span>
+                                </div>
+                                `;
+                                }
+                            });
+
+                            html += "</div>";
+                        } else {
+                            html = "<p class='text-muted'>No subjects found for this course.</p>";
+                        }
+
+                        $("#viewMarksContainer").html(html);
+                    },
+                    error: function () {
+                        $("#viewMarksContainer").html("<p class='text-danger'>Failed to load marks.</p>");
+                    }
+                });
+            }
+        });
+    </script>
+
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ######################################################################################
+// function loadMarksForView(enrollmentId) {
+        //     $("#viewMarksContainer").html("<p>Loading marks...</p>");
+
+        //     $.ajax({
+        //         url: `/marks/add/${enrollmentId}/`,  
+        //         type: "GET",
+        //         headers: { "X-Requested-With": "XMLHttpRequest" },
+        //         success: function (response) {
+        //             let html = "";
+
+        //             if (response.subjects && response.subjects.length > 0) {
+                        
+        //                 const hasMarks = response.subjects.some(sub => sub.mark !== null);
+
+        //                 if (hasMarks) {
+        //                     html = "<div class='list-group'>";
+
+        //                     response.subjects.forEach(function (subject) {
+        //                         if (subject.mark !== null) {
+        //                             html += `
+        //                     <div class="list-group-item d-flex justify-content-between align-items-center">
+        //                         <span class="fw-semibold">${subject.name}</span>
+        //                         <span>${subject.mark}</span>
+        //                     </div>
+        //                     `;
+        //                         } else {
+        //                             html += `
+        //                     <div class="list-group-item d-flex justify-content-between align-items-center">
+        //                         <span class="fw-semibold">${subject.name}</span>
+        //                         <span class="badge bg-secondary rounded-pill">Not graded</span>
+        //                     </div>
+        //                     `;
+        //                         }
+        //                     });
+
+        //                     html += "</div>";
+        //                 } else {
+        //                     html = "<p class='text-muted'>No marks recorded yet for this student.</p>";
+        //                 }
+        //             } else {
+        //                 html = "<p class='text-muted'>No subjects found for this course.</p>";
+        //             }
+
+        //             $("#viewMarksContainer").html(html);
+        //         },
+        //         error: function () {
+        //             $("#viewMarksContainer").html("<p class='text-danger'>Failed to load marks.</p>");
+        //         }
+        //     });
+        // } -->

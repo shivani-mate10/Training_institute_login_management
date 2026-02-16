@@ -89,3 +89,25 @@ class Subject_teacher(models.Model):
     
 
         
+class Enrollments(models.Model):
+    batch=models.ForeignKey(Batches,on_delete=models.CASCADE,related_name="batch_enrollment")
+    student=models.ForeignKey(User, on_delete=models.CASCADE,related_name="student_enrollment")
+    is_archived=models.BooleanField(default=False)
+
+    class Meta:
+        db_table='Enrollment'
+    
+    def __str__(self):
+        return f"{self.batch.batch_name} - {self.student.user_name}"
+    
+class Marks(models.Model):
+    enrollment=models.ForeignKey(Enrollments,on_delete=models.CASCADE,related_name="student_mark")
+    course=models.ForeignKey(Courses,on_delete=models.CASCADE, related_name="course_mark")
+    subject=models.ForeignKey(Subjects,on_delete=models.CASCADE,related_name="subject_mark")
+    mark=models.IntegerField()
+
+    class Meta:
+        db_table="marks"
+    
+    def __str__(self):
+        return f"{self.enrollment.student.user_name} - {self.subject.subject_name}"

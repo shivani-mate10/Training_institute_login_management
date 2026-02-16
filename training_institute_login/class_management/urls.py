@@ -1,9 +1,13 @@
 from django.urls import path
-from .views import register_user,login_user,dashboard_view,logout_user,users_list,add_user,delete_user,update_user
+from .views import register_user,login_user,dashboard_view,logout_user,add_user,delete_user,update_user,users_list
 from .views import subject_list ,course_list,add_course,delete_course,update_course,add_subject,delete_subject,update_subject
-from .views import subject_list_ajax,batch_list,add_batch,subject_teacher_list,delete_batch,update_batch
+from .views import subject_list_ajax,batch_list,add_batch,subject_teacher_list,delete_batch,update_batch,enrollment_list,add_enrollment,delete_enrollment
+from .views import batch_enrollments,add_marks,download_result_pdf,user_management,change_email
+
+
 urlpatterns = [
     path("", dashboard_view, name="dashboard"),
+    path("users/", user_management, name="user_management"), 
     path("register/", register_user, name="register"),
     path("login/", login_user, name="login"),
     path("logout/", logout_user, name="logout"),
@@ -11,6 +15,7 @@ urlpatterns = [
     path("users/add/ajax/", add_user, name="add_user_ajax"),
     path('delete-user/<int:id>/', delete_user, name='delete_user'),
     path('update-user/<int:id>/', update_user, name='update_user'),
+  
 
 
     path("subject/", subject_list,name="subject_list"),
@@ -32,5 +37,18 @@ urlpatterns = [
     path("update-batch/<int:id>/",update_batch,name="update_batch"),
 
 
+    path("enrollment/", enrollment_list,name="enrollment_list"),
+    path("enrollment/add/", add_enrollment,name="add_enrollment"),
+    path("delete-enrollment/<int:id>/",delete_enrollment,name="delete_enrollment"),
+
+    path("batch/enrollments/<int:batch_id>/", batch_enrollments, name="batch_enrollments"),
+
+
+    path("marks/add/<int:enrollment_id>/", add_marks, name="add_marks"),
+
+    
+    path('marks/download/<int:enrollment_id>/', download_result_pdf, name='download_result_pdf'),
+
+    path('change-email/',change_email, name='change_email'),
  
 ]

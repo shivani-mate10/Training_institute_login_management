@@ -20,43 +20,11 @@
 </head>
 
 <body>
+
+   
+    {% include 'menu.html' %}
     <div class="container">
 
-        <div class="row">
-            <div class="col-12 text-center">
-                <h1>Traning Institute</h1>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12 py-4 d-flex justify-content-center align-items-center gap-3">
-
-                <form action="{% url 'dashboard' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Users
-                    </button>
-                </form>
-                <form action="{% url 'subject_list' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Subjects
-                    </button>
-                </form>
-
-
-                <form action="{% url 'course_list' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Courses
-                    </button>
-                </form>
-
-                 <form action="{% url 'batch_list' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Batch
-                    </button>
-                </form>
-
-            </div>
-        </div>
 
 
         <div class="row">
@@ -227,7 +195,7 @@
             $('#subjectsTable').on('click', '.delete-btn', function () {
 
                 const subjectId = $(this).data("id");
-                
+
 
                 if (confirm(`Are you sure you want to delete Subject`)) {
 
@@ -259,18 +227,18 @@
                 const subjectId = $(this).data('id');
 
                 $.ajax({
-                    url: `/update-subject/${subjectId}/`,  
+                    url: `/update-subject/${subjectId}/`,
                     type: "GET",
                     success: function (response) {
                         if (response.success) {
-                            
+
                             $('#edit_subject_id').val(response.subject.id);
                             $('#edit_subject_name').val(response.subject.subject_name);
 
-                            $('#editSubjectModal').modal('show'); 
-                           
+                            $('#editSubjectModal').modal('show');
 
-                            
+
+
                         } else {
                             Swal.fire('Error loading subject data: ' + response.message);
                         }
@@ -281,14 +249,14 @@
                 });
             });
 
-            
+
             $('#editSubjectForm').on('submit', function (e) {
                 e.preventDefault();
                 const subjectId = $('#edit_subject_id').val();
                 const formData = $(this).serialize();
 
                 $.ajax({
-                    url: `/update-subject/${subjectId}/`, 
+                    url: `/update-subject/${subjectId}/`,
                     type: "POST",
                     data: formData,
                     headers: {
@@ -310,7 +278,7 @@
                 });
             });
 
-        
+
 
 
 

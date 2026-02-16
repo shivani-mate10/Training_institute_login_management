@@ -21,45 +21,10 @@
 </head>
 
 <body>
+    
+    {% include 'menu.html' %}
 
     <div class="container">
-
-        <div class="row">
-            <div class="col-12 text-center">
-                <h1>Traning Institute</h1>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12 py-4 d-flex justify-content-center align-items-center gap-3">
-
-                <form action="{% url 'dashboard' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Users
-                    </button>
-                </form>
-                <form action="{% url 'subject_list' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Subjects
-                    </button>
-                </form>
-
-
-                <form action="{% url 'course_list' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Courses
-                    </button>
-                </form>
-
-                <form action="{% url 'batch_list' %}" method="get" class="mb-0">
-                    <button class="btn btn-outline-primary" type="submit">
-                        Batch
-                    </button>
-                </form>
-
-            </div>
-        </div>
-
 
 
         <div class="row">
@@ -73,6 +38,19 @@
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addbatchModal">
                     Add Batch
                 </button>
+            </div>
+        </div>
+
+
+        <div class="row mb-3">
+
+            <div class="col-md-6">
+                <select id="courseFilter" class="form-select">
+                    <option value="">All Courses</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}">{{ course.course_name }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
 
@@ -196,7 +174,7 @@
 
 
 
-        <!-- <div class="modal fade" id="viewModal" tabindex="-1">
+        <div class="modal fade" id="viewModal" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -240,7 +218,7 @@
                     </div>
                 </div>
             </div>
-        </div> -->
+        </div>
 
 
 
@@ -265,6 +243,11 @@
             table = $('#batchesTable').DataTable({
                 ajax: {
                     url: window.location.href,
+                    data: function (d) {
+                        return {
+                            course: $('#courseFilter').val()
+                        }
+                    }
 
                 },
                 columns: [
@@ -276,15 +259,21 @@
                     {
                         data: null,
                         render: function (data, type, row) {
+                            let enrollmentUrl = "{% url 'batch_enrollments' 0 %}".replace('0', row.id);
                             return `
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
                         <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
-                        <button class="btn btn-sm btn-info view-btn" data-id="${row.id}" data-course="${row.course_id}">View</button>
+                        <button class="btn btn-sm btn-info view-btn" data-id="${row.id}">View</button>
+                         <a href="${enrollmentUrl}" class="btn btn-sm btn-success">Enrollments</a>
                     `;
                         }
                     }
 
                 ]
+            });
+
+            $('#courseFilter').on('change', function () {
+                table.ajax.reload();
             });
 
             $(document).on("submit", ".add-batch-form", function (e) {
@@ -542,7 +531,96 @@
                 });
             });
 
-        
+
+
+            $('#batchesTable').on('click', '.view-btn', function () {
+                const batchId = $(this).data('id');
+
+                $.ajax({
+                    url: `/update-batch/${batchId}/`,
+                    type: "GET",
+                    success: function (response) {
+                        if (response.success) {
+
+                            $('#viewBatchId').val(response.batch.id);
+                            $('#viewBatchName').val(response.batch.batch_name);
+                            $('#viewStartDate').val(response.batch.start_date);
+                            $('#viewDuration').val(response.batch.duration);
+
+
+                            let courseName = $('#editCourseDropdown option:selected').text();
+                            $('#viewCourseName').val(response.batch.course_name);
+
+
+
+                            loadViewSubjectTeachers(response.batch.course_id, batchId);
+
+
+                            $('#viewModal').modal('show');
+                        } else {
+                            Swal.fire('Error loading batch details: ' + response.message);
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Server error while loading batch details');
+                    }
+                });
+            });
+
+
+            function loadViewSubjectTeachers(courseId, batchId) {
+                $("#viewSubjectTeacherInfo").html("<p>Loading subject-teacher mappings...</p>");
+
+                $.ajax({
+                    url: "/ajax/subject-teacher-list/",
+                    type: "GET",
+                    data: {
+                        course_id: courseId,
+                        batch_id: batchId
+                    },
+                    success: function (response) {
+                        let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+                        html += '<thead><tr><th>Subject</th><th>Teacher</th></tr></thead><tbody>';
+
+                        let hasMappings = false;
+
+                        response.subjects.forEach(function (sub) {
+
+                            hasMappings = true;
+
+                            let teacherName = 'Not assigned';
+
+                            if (sub.selected_teacher) {
+
+                                sub.teachers.forEach(function (t) {
+                                    if (t.id == sub.selected_teacher) {
+                                        teacherName = t.name;
+                                    }
+                                });
+                            }
+
+                            html += `
+                            <tr>
+                                <td>${sub.name}</td>
+                                <td>${teacherName}</td>
+                            </tr>
+                        `;
+                        });
+
+                        html += '</tbody></table></div>';
+
+
+                        $("#viewSubjectTeacherInfo").html(html);
+                    },
+                    error: function () {
+                        $("#viewSubjectTeacherInfo").html(
+                            '<div class="alert alert-danger">Error loading subject-teacher mappings</div>'
+                        );
+                    }
+                });
+            }
+
+
 
 
 
@@ -697,3 +775,74 @@
             //         }
             //     });
             // }); -->
+<!-- 
+ // if (response.batch.course_name) {
+                            //     $('#viewCourseName').val(response.batch.course_name);
+                            // } else {
+                                
+                            //     $.ajax({
+                            //         url: "/get-course-name/", 
+                            //         type: "GET",
+                            //         data: { course_id: response.batch.course_id },
+                            //         async: false,
+                            //         success: function (courseResponse) {
+                            //             $('#viewCourseName').val(courseResponse.course_name);
+                            //         }
+                            //     });
+                            // } -->
+
+
+<!-- $.ajax({
+                    url: "/ajax/subject-teacher-list/",
+                    type: "GET",
+                    data: {
+                        course_id: courseId,
+                        batch_id: batchId
+                    },
+                    success: function (response) {
+                        let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+                        html += '<thead><tr><th>Subject</th><th>Teacher</th></tr></thead><tbody>';
+
+                        let hasMappings = false;
+
+                        response.subjects.forEach(function (sub) {
+                            if (sub.selected_teacher) {
+                                hasMappings = true;
+                                
+                                let teacherName = '';
+                                sub.teachers.forEach(function (t) {
+                                    if (t.id == sub.selected_teacher) {
+                                        teacherName = t.name;
+                                    }
+                                });
+
+                                html += `
+                        <tr>
+                            <td>${sub.name}</td>
+                            <td>${teacherName}</td>
+                        </tr>
+                    `;
+                            }
+                        });
+
+                        html += '</tbody></table></div>';
+
+                        if (!hasMappings) {
+                            html = '<div class="alert alert-info">No teachers assigned to subjects for this batch.</div>';
+                        }
+
+                        $("#viewSubjectTeacherInfo").html(html);
+                    },
+                    error: function () {
+                        $("#viewSubjectTeacherInfo").html(
+                            '<div class="alert alert-danger">Error loading subject-teacher mappings</div>'
+                        );
+                    }
+                });
+            }
+
+
+
+
+
+ -->
