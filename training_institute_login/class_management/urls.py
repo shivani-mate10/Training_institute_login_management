@@ -2,7 +2,7 @@ from django.urls import path
 from .views import register_user,login_user,dashboard_view,logout_user,add_user,delete_user,update_user,users_list
 from .views import subject_list ,course_list,add_course,delete_course,update_course,add_subject,delete_subject,update_subject
 from .views import subject_list_ajax,batch_list,add_batch,subject_teacher_list,delete_batch,update_batch,enrollment_list,add_enrollment,delete_enrollment
-from .views import batch_enrollments,add_marks,download_result_pdf,user_management,change_email
+from .views import batch_enrollments,add_marks,download_result_pdf,user_management,change_email, change_password
 
 
 urlpatterns = [
@@ -50,5 +50,6 @@ urlpatterns = [
     path('marks/download/<int:enrollment_id>/', download_result_pdf, name='download_result_pdf'),
 
     path('change-email/',change_email, name='change_email'),
+    path('change-password/', change_password, name='change_password'),
  
 ]

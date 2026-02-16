@@ -18,6 +18,12 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 import io
 from datetime import datetime
 from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+import json
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.hashers import check_password
+import json
 
 
 @login_required
@@ -1231,14 +1237,12 @@ def download_result_pdf(request, enrollment_id):
 #     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 
 
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-import json
+
 
 @login_required
 @require_POST
 def change_email(request):
-    # Check if it's an AJAX request
+    
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         try:
             data = json.loads(request.body)
@@ -1248,35 +1252,91 @@ def change_email(request):
     else:
         new_email = request.POST.get('email')
     
-    # Validate email
+   
     if not new_email:
         messages.error(request, 'Email address is required.')
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Email address is required'}, status=400)
         return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
     
-    # Check if email already exists
+   
     if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
         messages.error(request, 'This email is already in use by another account.')
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'This email is already in use'}, status=400)
         return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
     
-    # Update email
+    
     request.user.email = new_email
     request.user.save()
-    # messages.success(request, 'Your email has been updated successfully.')
     
-    # Return JSON response for AJAX requests
+    
+    
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
-            # 'message': 'Your email has been updated successfully.',
+            'message': 'Your email has been updated successfully.',
             'new_email': new_email
         })
     
     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 
+
+
+
+
+@login_required
+@require_POST
+def change_password(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            data = json.loads(request.body)
+            current_password = data.get('current_password')
+            new_password = data.get('new_password')
+            confirm_password = data.get('confirm_password')
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data'}, status=400)
+    else:
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+    
+    
+    if not all([current_password, new_password, confirm_password]):
+        return JsonResponse({'success': False, 'error': 'All fields are required'}, status=400)
+    
+    
+    if not request.user.check_password(current_password):
+        return JsonResponse({'success': False, 'error': 'Current password does not match'}, status=400)
+    
+   
+    if current_password == new_password:
+        return JsonResponse({'success': False, 'error': 'New password must be different from current password'}, status=400)
+    
+   
+    if new_password != confirm_password:
+        return JsonResponse({'success': False, 'error': 'New passwords do not match'}, status=400)
+    
+    
+    if len(new_password) < 8:
+        return JsonResponse({'success': False, 'error': 'Password must be at least 8 characters long'}, status=400)
+    
+    
+    request.user.set_password(new_password)
+    request.user.save()
+    
+    
+    update_session_auth_hash(request, request.user)
+    
+    
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': 'Your password has been updated successfully.'
+        })
+    
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 
 
 

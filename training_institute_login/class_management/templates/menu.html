@@ -1,15 +1,29 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- {% if messages %}
-    <div class="container mt-3">
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %} -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<style>
+    .invalid-feedback {
+        display: block !important;
+        color: #dc3545;
+        font-size: 0.875em;
+        margin-top: 0.25rem;
+        width: 100%;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545 !important;
+    }
+    
+    .input-group .is-invalid {
+        border-color: #dc3545 !important;
+    }
+    
+
+    .modal-body .invalid-feedback {
+        display: block !important;
+    }
+</style>
 
 
 <div class="d-flex justify-content-end py-4 mx-4">
@@ -19,7 +33,7 @@
         </button>
         <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changeEmailModal">Change Email</a></li>
-            <li><a class="dropdown-item" href="#">Change Password</a></li>
+            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">Change Password</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
         </ul>
@@ -28,7 +42,7 @@
 
 
 
- <!-- Change Email Modal (same HTML structure) -->
+ 
 <div class="modal fade" id="changeEmailModal" tabindex="-1" aria-labelledby="changeEmailModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -54,6 +68,67 @@
     </div>
 </div>
 
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel">Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    {% csrf_token %}
+                    
+                    
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label">Current Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('current_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div id="currentPasswordError" class="invalid-feedback"></div>
+                    </div>
+
+                    
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">New Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="new_password" name="new_password" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('new_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div id="newPasswordError" class="invalid-feedback"></div>
+                        <small class="text-muted">Password must be at least 8 characters long</small>
+                    </div>
+
+                   
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm New Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirm_password', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div id="confirmPasswordError" class="invalid-feedback"></div>
+                    </div>
+
+                    
+                    <div class="progress mb-3 d-none" id="passwordStrength">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePasswordBtn">Update Password</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 <div class="row">
@@ -104,6 +179,7 @@
     </div>
 </div>
 
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const changeEmailModal = document.getElementById('changeEmailModal');
@@ -111,56 +187,50 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveEmailBtn = document.getElementById('saveEmailBtn');
     const emailInput = document.getElementById('email');
     const emailError = document.getElementById('emailError');
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
     let modalInstance = null;
 
-    // Check if CSRF token exists
-    if (!csrfToken) {
-        console.error('CSRF token not found!');
-    }
-
-    // Initialize modal instance when modal is shown
+    
     changeEmailModal.addEventListener('shown.bs.modal', function() {
         modalInstance = bootstrap.Modal.getInstance(changeEmailModal);
-        if (!modalInstance) {
-            modalInstance = new bootstrap.Modal(changeEmailModal);
-        }
         emailInput.focus();
     });
 
-    // Reset only validation when modal is hidden
+    
     changeEmailModal.addEventListener('hidden.bs.modal', function() {
+        changeEmailForm.reset();
         emailInput.classList.remove('is-invalid');
         emailError.textContent = '';
-        // Don't reset the form value
     });
 
-    // Handle save button click
+    
     saveEmailBtn.addEventListener('click', function() {
-        // Disable button to prevent double submission
+        
         saveEmailBtn.disabled = true;
         saveEmailBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
 
-        // Clear previous errors
+        
         emailInput.classList.remove('is-invalid');
         emailError.textContent = '';
 
-        // Validate email
+        
         const newEmail = emailInput.value.trim();
         if (!newEmail) {
             showError(emailInput, emailError, 'Email address is required.');
-            resetButton();
+            saveEmailBtn.disabled = false;
+            saveEmailBtn.textContent = 'Save Changes';
             return;
         }
 
         if (!isValidEmail(newEmail)) {
             showError(emailInput, emailError, 'Please enter a valid email address.');
-            resetButton();
+            saveEmailBtn.disabled = false;
+            saveEmailBtn.textContent = 'Save Changes';
             return;
         }
 
-        // Send AJAX request
+        
         fetch('{% url "change_email" %}', {
             method: 'POST',
             headers: {
@@ -172,21 +242,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 email: newEmail
             })
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            // Close the modal safely
-            closeModalSafely();
+           
+            if (modalInstance) {
+                modalInstance.hide();
+            }
 
             if (data.success) {
-                // Update the email input value for next time
-                emailInput.value = data.new_email;
                 
-                // Show success SweetAlert
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
@@ -195,9 +259,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     showConfirmButton: true,
                     confirmButtonColor: '#0d6efd',
                     timerProgressBar: true
+                }).then((result) => {
+                
+                    emailInput.value = data.new_email;
                 });
             } else {
-                // Show error SweetAlert
+                
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -209,59 +276,579 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             
-            // Close modal if open
-            closeModalSafely();
             
-            // Show error SweetAlert
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            
+            
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: error.error || 'An error occurred. Please try again.',
+                text: 'An error occurred. Please try again.',
                 confirmButtonColor: '#0d6efd'
             });
         })
         .finally(() => {
-            resetButton();
+            
+            saveEmailBtn.disabled = false;
+            saveEmailBtn.textContent = 'Save Changes';
         });
     });
 
-    // Helper function to reset button
-    function resetButton() {
-        saveEmailBtn.disabled = false;
-        saveEmailBtn.textContent = 'Save Changes';
-    }
-
-    // Helper function to safely close modal
-    function closeModalSafely() {
-        if (modalInstance) {
-            modalInstance.hide();
-        } else {
-            const instance = bootstrap.Modal.getInstance(changeEmailModal);
-            if (instance) {
-                instance.hide();
-            }
-        }
-    }
-
-    // Helper function to show inline error
+   
     function showError(input, errorElement, message) {
         input.classList.add('is-invalid');
         errorElement.textContent = message;
     }
 
-    // Email validation helper
+    
     function isValidEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(email);
     }
 
-    // Optional: Validate on input
+    
     emailInput.addEventListener('input', function() {
         emailInput.classList.remove('is-invalid');
         emailError.textContent = '';
     });
 });
 </script>
+
+
+<script>
+
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+   
+    const passwordModal = document.getElementById('changePasswordModal');
+    const passwordForm = document.getElementById('changePasswordForm');
+    const savePasswordBtn = document.getElementById('savePasswordBtn');
+    
+    
+    const currentPassword = document.getElementById('current_password');
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    
+    const currentPasswordError = document.getElementById('currentPasswordError');
+    const newPasswordError = document.getElementById('newPasswordError');
+    const confirmPasswordError = document.getElementById('confirmPasswordError');
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    let passwordModalInstance = null;
+
+    
+    passwordModal.addEventListener('shown.bs.modal', function() {
+        passwordModalInstance = bootstrap.Modal.getInstance(passwordModal);
+        if (!passwordModalInstance) {
+            passwordModalInstance = new bootstrap.Modal(passwordModal);
+        }
+        currentPassword.focus();
+    });
+
+   
+    passwordModal.addEventListener('hidden.bs.modal', function() {
+        passwordForm.reset();
+        clearPasswordValidation();
+    });
+
+   
+    function clearPasswordValidation() {
+        [currentPassword, newPassword, confirmPassword].forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+        currentPasswordError.textContent = '';
+        newPasswordError.textContent = '';
+        confirmPasswordError.textContent = '';
+    }
+
+    
+    currentPassword.addEventListener('input', function() {
+        if (newPassword.value && currentPassword.value) {
+            if (currentPassword.value === newPassword.value) {
+                showError(currentPassword, currentPasswordError, 'Current password cannot be the same as new password');
+                showError(newPassword, newPasswordError, 'New password must be different from current password');
+            } else {
+               
+                if (currentPasswordError.textContent === 'Current password cannot be the same as new password') {
+                    currentPassword.classList.remove('is-invalid');
+                    currentPasswordError.textContent = '';
+                }
+                if (newPasswordError.textContent === 'New password must be different from current password') {
+                    newPassword.classList.remove('is-invalid');
+                    newPasswordError.textContent = '';
+                }
+            }
+        }
+    });
+
+    
+    newPassword.addEventListener('input', function() {
+        
+        if (currentPassword.value && newPassword.value) {
+            if (currentPassword.value === newPassword.value) {
+                showError(newPassword, newPasswordError, 'New password must be different from current password');
+                showError(currentPassword, currentPasswordError, 'Current password cannot be the same as new password');
+            } else {
+                
+                if (currentPasswordError.textContent === 'Current password cannot be the same as new password') {
+                    currentPassword.classList.remove('is-invalid');
+                    currentPasswordError.textContent = '';
+                }
+                newPassword.classList.remove('is-invalid');
+                newPasswordError.textContent = '';
+            }
+        }
+        
+        
+        if (confirmPassword.value) {
+            if (newPassword.value !== confirmPassword.value) {
+                showError(confirmPassword, confirmPasswordError, 'New password and confirm password do not match');
+            } else {
+                confirmPassword.classList.remove('is-invalid');
+                confirmPasswordError.textContent = '';
+            }
+        }
+    });
+
+    
+    confirmPassword.addEventListener('input', function() {
+        if (newPassword.value && confirmPassword.value) {
+            if (newPassword.value !== confirmPassword.value) {
+                showError(confirmPassword, confirmPasswordError, 'New password and confirm password do not match');
+            } else {
+                confirmPassword.classList.remove('is-invalid');
+                confirmPasswordError.textContent = '';
+            }
+        }
+    });
+
+    
+    savePasswordBtn.addEventListener('click', function() {
+        
+        savePasswordBtn.disabled = true;
+        savePasswordBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+
+        
+        clearPasswordValidation();
+
+        
+        const currentVal = currentPassword.value.trim();
+        const newVal = newPassword.value.trim();
+        const confirmVal = confirmPassword.value.trim();
+
+        
+        if (!currentVal || !newVal || !confirmVal) {
+            if (!currentVal) showError(currentPassword, currentPasswordError, 'Current password is required');
+            if (!newVal) showError(newPassword, newPasswordError, 'New password is required');
+            if (!confirmVal) showError(confirmPassword, confirmPasswordError, 'Please confirm your new password');
+            resetPasswordButton();
+            return;
+        }
+
+        
+        if (newVal.length < 8) {
+            showError(newPassword, newPasswordError, 'Password must be at least 8 characters long');
+            resetPasswordButton();
+            return;
+        }
+
+        if (currentVal === newVal) {
+            showError(currentPassword, currentPasswordError, 'Current password cannot be the same as new password');
+            showError(newPassword, newPasswordError, 'New password must be different from current password');
+            resetPasswordButton();
+            return;
+        }
+
+        if (newVal !== confirmVal) {
+            showError(confirmPassword, confirmPasswordError, 'New password and confirm password do not match');
+            resetPasswordButton();
+            return;
+        }
+
+        
+        fetch('{% url "change_password" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                current_password: currentVal,
+                new_password: newVal,
+                confirm_password: confirmVal
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            
+            closePasswordModalSafely();
+
+            if (data.success) {
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: true,
+                    confirmButtonColor: '#0d6efd',
+                    timerProgressBar: true
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            
+            closePasswordModalSafely();
+            
+            
+            let errorMessage = error.error || 'An error occurred. Please try again.';
+            
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+                confirmButtonColor: '#0d6efd'
+            });
+
+            
+            if (errorMessage.includes('Current password does not match')) {
+                setTimeout(() => {
+                    passwordModalInstance = new bootstrap.Modal(passwordModal);
+                    passwordModalInstance.show();
+                    showError(currentPassword, currentPasswordError, errorMessage);
+                }, 500);
+            }
+        })
+        .finally(() => {
+            resetPasswordButton();
+        });
+    });
+
+    
+    function resetPasswordButton() {
+        savePasswordBtn.disabled = false;
+        savePasswordBtn.textContent = 'Update Password';
+    }
+
+    function closePasswordModalSafely() {
+        if (passwordModalInstance) {
+            passwordModalInstance.hide();
+        } else {
+            const instance = bootstrap.Modal.getInstance(passwordModal);
+            if (instance) {
+                instance.hide();
+            }
+        }
+    }
+
+    function showError(input, errorElement, message) {
+        input.classList.add('is-invalid');
+        errorElement.textContent = message;
+    }
+});
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- #############################Password############################### -->
+
+<!-- <script>
+
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const passwordModal = document.getElementById('changePasswordModal');
+    const passwordForm = document.getElementById('changePasswordForm');
+    const savePasswordBtn = document.getElementById('savePasswordBtn');
+    
+    
+    const currentPassword = document.getElementById('current_password');
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    
+    const currentPasswordError = document.getElementById('currentPasswordError');
+    const newPasswordError = document.getElementById('newPasswordError');
+    const confirmPasswordError = document.getElementById('confirmPasswordError');
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    let passwordModalInstance = null;
+
+    
+    passwordModal.addEventListener('shown.bs.modal', function() {
+        passwordModalInstance = bootstrap.Modal.getInstance(passwordModal);
+        if (!passwordModalInstance) {
+            passwordModalInstance = new bootstrap.Modal(passwordModal);
+        }
+        currentPassword.focus();
+    });
+
+    
+    passwordModal.addEventListener('hidden.bs.modal', function() {
+        passwordForm.reset();
+        clearPasswordValidation();
+    });
+
+    
+    function clearPasswordValidation() {
+        [currentPassword, newPassword, confirmPassword].forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+        currentPasswordError.textContent = '';
+        newPasswordError.textContent = '';
+        confirmPasswordError.textContent = '';
+    }
+
+    
+    confirmPassword.addEventListener('input', function() {
+        if (newPassword.value && confirmPassword.value) {
+            if (newPassword.value !== confirmPassword.value) {
+                showError(confirmPassword, confirmPasswordError, 'Passwords do not match');
+            } else {
+                confirmPassword.classList.remove('is-invalid');
+                confirmPasswordError.textContent = '';
+            }
+        }
+    });
+
+    
+    newPassword.addEventListener('input', function() {
+        if (currentPassword.value && newPassword.value) {
+            if (currentPassword.value === newPassword.value) {
+                showError(newPassword, newPasswordError, 'New password must be different from current password');
+            } else {
+                newPassword.classList.remove('is-invalid');
+                newPasswordError.textContent = '';
+            }
+        }
+        
+       
+        if (confirmPassword.value && newPassword.value !== confirmPassword.value) {
+            showError(confirmPassword, confirmPasswordError, 'Passwords do not match');
+        } else if (confirmPassword.value) {
+            confirmPassword.classList.remove('is-invalid');
+            confirmPasswordError.textContent = '';
+        }
+    });
+
+    
+    savePasswordBtn.addEventListener('click', function() {
+        
+        savePasswordBtn.disabled = true;
+        savePasswordBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+
+        
+        clearPasswordValidation();
+
+        
+        const currentVal = currentPassword.value.trim();
+        const newVal = newPassword.value.trim();
+        const confirmVal = confirmPassword.value.trim();
+
+        
+        if (!currentVal || !newVal || !confirmVal) {
+            if (!currentVal) showError(currentPassword, currentPasswordError, 'Current password is required');
+            if (!newVal) showError(newPassword, newPasswordError, 'New password is required');
+            if (!confirmVal) showError(confirmPassword, confirmPasswordError, 'Please confirm your password');
+            resetPasswordButton();
+            return;
+        }
+
+        
+        if (newVal.length < 8) {
+            showError(newPassword, newPasswordError, 'Password must be at least 8 characters long');
+            resetPasswordButton();
+            return;
+        }
+
+        if (currentVal === newVal) {
+            showError(newPassword, newPasswordError, 'New password must be different from current password');
+            resetPasswordButton();
+            return;
+        }
+
+        if (newVal !== confirmVal) {
+            showError(confirmPassword, confirmPasswordError, 'Passwords do not match');
+            resetPasswordButton();
+            return;
+        }
+
+        
+        fetch('{% url "change_password" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                current_password: currentVal,
+                new_password: newVal,
+                confirm_password: confirmVal
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            
+            closePasswordModalSafely();
+
+            if (data.success) {
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: true,
+                    confirmButtonColor: '#0d6efd',
+                    timerProgressBar: true
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            
+            closePasswordModalSafely();
+            
+            
+            let errorMessage = error.error || 'An error occurred. Please try again.';
+            
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+                confirmButtonColor: '#0d6efd'
+            });
+
+           
+            if (errorMessage.includes('Current password does not match')) {
+                setTimeout(() => {
+                    passwordModalInstance = new bootstrap.Modal(passwordModal);
+                    passwordModalInstance.show();
+                    showError(currentPassword, currentPasswordError, errorMessage);
+                }, 500);
+            }
+        })
+        .finally(() => {
+            resetPasswordButton();
+        });
+    });
+
+    
+    function resetPasswordButton() {
+        savePasswordBtn.disabled = false;
+        savePasswordBtn.textContent = 'Update Password';
+    }
+
+    function closePasswordModalSafely() {
+        if (passwordModalInstance) {
+            passwordModalInstance.hide();
+        } else {
+            const instance = bootstrap.Modal.getInstance(passwordModal);
+            if (instance) {
+                instance.hide();
+            }
+        }
+    }
+
+    function showError(input, errorElement, message) {
+        input.classList.add('is-invalid');
+        errorElement.textContent = message;
+    }
+});
+</script> -->
+
+
+<!-- ########Email######### -->
 
 <!-- <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -635,3 +1222,425 @@ document.addEventListener('DOMContentLoaded', function() {
 
     </div>
 </div> -->
+
+
+
+<!-- ################################################################# -->
+
+<!-- <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const changeEmailModal = document.getElementById('changeEmailModal');
+    const changeEmailForm = document.getElementById('changeEmailForm');
+    const saveEmailBtn = document.getElementById('saveEmailBtn');
+    const emailInput = document.getElementById('email');
+    const emailError = document.getElementById('emailError');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    let modalInstance = null;
+
+    // Check if CSRF token exists
+    if (!csrfToken) {
+        console.error('CSRF token not found!');
+    }
+
+    // Initialize modal instance when modal is shown
+    changeEmailModal.addEventListener('shown.bs.modal', function() {
+        modalInstance = bootstrap.Modal.getInstance(changeEmailModal);
+        if (!modalInstance) {
+            modalInstance = new bootstrap.Modal(changeEmailModal);
+        }
+        emailInput.focus();
+    });
+
+    // Reset only validation when modal is hidden
+    changeEmailModal.addEventListener('hidden.bs.modal', function() {
+        emailInput.classList.remove('is-invalid');
+        emailError.textContent = '';
+        // Don't reset the form value
+    });
+
+    // Handle save button click
+    saveEmailBtn.addEventListener('click', function() {
+        // Disable button to prevent double submission
+        saveEmailBtn.disabled = true;
+        saveEmailBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+        // Clear previous errors
+        emailInput.classList.remove('is-invalid');
+        emailError.textContent = '';
+
+        // Validate email
+        const newEmail = emailInput.value.trim();
+        if (!newEmail) {
+            showError(emailInput, emailError, 'Email address is required.');
+            resetButton();
+            return;
+        }
+
+        if (!isValidEmail(newEmail)) {
+            showError(emailInput, emailError, 'Please enter a valid email address.');
+            resetButton();
+            return;
+        }
+
+        // Send AJAX request
+        fetch('{% url "change_email" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                email: newEmail
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Close the modal safely
+            closeModalSafely();
+
+            if (data.success) {
+                // Update the email input value for next time
+                emailInput.value = data.new_email;
+                
+                // Show success SweetAlert
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: true,
+                    confirmButtonColor: '#0d6efd',
+                    timerProgressBar: true
+                });
+            } else {
+                // Show error SweetAlert
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: data.error || 'Something went wrong!',
+                    confirmButtonColor: '#0d6efd'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            // Close modal if open
+            closeModalSafely();
+            
+            // Show error SweetAlert
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.error || 'An error occurred. Please try again.',
+                confirmButtonColor: '#0d6efd'
+            });
+        })
+        .finally(() => {
+            resetButton();
+        });
+    });
+
+    // Helper function to reset button
+    function resetButton() {
+        saveEmailBtn.disabled = false;
+        saveEmailBtn.textContent = 'Save Changes';
+    }
+
+    // Helper function to safely close modal
+    function closeModalSafely() {
+        if (modalInstance) {
+            modalInstance.hide();
+        } else {
+            const instance = bootstrap.Modal.getInstance(changeEmailModal);
+            if (instance) {
+                instance.hide();
+            }
+        }
+    }
+
+    // Helper function to show inline error
+    function showError(input, errorElement, message) {
+        input.classList.add('is-invalid');
+        errorElement.textContent = message;
+    }
+
+    // Email validation helper
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    // Optional: Validate on input
+    emailInput.addEventListener('input', function() {
+        emailInput.classList.remove('is-invalid');
+        emailError.textContent = '';
+    });
+});
+</script>
+
+
+<script>
+// Password toggle function (make it global)
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Password modal elements
+    const passwordModal = document.getElementById('changePasswordModal');
+    const passwordForm = document.getElementById('changePasswordForm');
+    const savePasswordBtn = document.getElementById('savePasswordBtn');
+    
+    // Password input fields
+    const currentPassword = document.getElementById('current_password');
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    // Error elements
+    const currentPasswordError = document.getElementById('currentPasswordError');
+    const newPasswordError = document.getElementById('newPasswordError');
+    const confirmPasswordError = document.getElementById('confirmPasswordError');
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    let passwordModalInstance = null;
+
+    // Initialize password modal
+    passwordModal.addEventListener('shown.bs.modal', function() {
+        passwordModalInstance = bootstrap.Modal.getInstance(passwordModal);
+        if (!passwordModalInstance) {
+            passwordModalInstance = new bootstrap.Modal(passwordModal);
+        }
+        currentPassword.focus();
+    });
+
+    // Reset validation when modal is hidden
+    passwordModal.addEventListener('hidden.bs.modal', function() {
+        passwordForm.reset();
+        clearPasswordValidation();
+    });
+
+    // Clear all password validation errors
+    function clearPasswordValidation() {
+        [currentPassword, newPassword, confirmPassword].forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+        currentPasswordError.textContent = '';
+        newPasswordError.textContent = '';
+        confirmPasswordError.textContent = '';
+    }
+
+    // Real-time validation for current password against new password
+    currentPassword.addEventListener('input', function() {
+        if (newPassword.value && currentPassword.value) {
+            if (currentPassword.value === newPassword.value) {
+                showError(currentPassword, currentPasswordError, 'Current password cannot be the same as new password');
+                showError(newPassword, newPasswordError, 'New password must be different from current password');
+            } else {
+                // Clear errors if they were shown
+                if (currentPasswordError.textContent === 'Current password cannot be the same as new password') {
+                    currentPassword.classList.remove('is-invalid');
+                    currentPasswordError.textContent = '';
+                }
+                if (newPasswordError.textContent === 'New password must be different from current password') {
+                    newPassword.classList.remove('is-invalid');
+                    newPasswordError.textContent = '';
+                }
+            }
+        }
+    });
+
+    // Real-time validation for new password
+    newPassword.addEventListener('input', function() {
+        // Check if new password is same as current
+        if (currentPassword.value && newPassword.value) {
+            if (currentPassword.value === newPassword.value) {
+                showError(newPassword, newPasswordError, 'New password must be different from current password');
+                showError(currentPassword, currentPasswordError, 'Current password cannot be the same as new password');
+            } else {
+                // Clear current password error if it was because of this
+                if (currentPasswordError.textContent === 'Current password cannot be the same as new password') {
+                    currentPassword.classList.remove('is-invalid');
+                    currentPasswordError.textContent = '';
+                }
+                newPassword.classList.remove('is-invalid');
+                newPasswordError.textContent = '';
+            }
+        }
+        
+        // Check confirm password if it's already filled
+        if (confirmPassword.value) {
+            if (newPassword.value !== confirmPassword.value) {
+                showError(confirmPassword, confirmPasswordError, 'New password and confirm password do not match');
+            } else {
+                confirmPassword.classList.remove('is-invalid');
+                confirmPasswordError.textContent = '';
+            }
+        }
+    });
+
+    // Real-time validation for confirm password
+    confirmPassword.addEventListener('input', function() {
+        if (newPassword.value && confirmPassword.value) {
+            if (newPassword.value !== confirmPassword.value) {
+                showError(confirmPassword, confirmPasswordError, 'New password and confirm password do not match');
+            } else {
+                confirmPassword.classList.remove('is-invalid');
+                confirmPasswordError.textContent = '';
+            }
+        }
+    });
+
+    // Handle save password button click
+    savePasswordBtn.addEventListener('click', function() {
+        // Disable button
+        savePasswordBtn.disabled = true;
+        savePasswordBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+
+        // Clear previous validation
+        clearPasswordValidation();
+
+        // Get values
+        const currentVal = currentPassword.value.trim();
+        const newVal = newPassword.value.trim();
+        const confirmVal = confirmPassword.value.trim();
+
+        // Validate all fields are filled
+        if (!currentVal || !newVal || !confirmVal) {
+            if (!currentVal) showError(currentPassword, currentPasswordError, 'Current password is required');
+            if (!newVal) showError(newPassword, newPasswordError, 'New password is required');
+            if (!confirmVal) showError(confirmPassword, confirmPasswordError, 'Please confirm your new password');
+            resetPasswordButton();
+            return;
+        }
+
+        // Client-side validations with specific error messages
+        if (newVal.length < 8) {
+            showError(newPassword, newPasswordError, 'Password must be at least 8 characters long');
+            resetPasswordButton();
+            return;
+        }
+
+        if (currentVal === newVal) {
+            showError(currentPassword, currentPasswordError, 'Current password cannot be the same as new password');
+            showError(newPassword, newPasswordError, 'New password must be different from current password');
+            resetPasswordButton();
+            return;
+        }
+
+        if (newVal !== confirmVal) {
+            showError(confirmPassword, confirmPasswordError, 'New password and confirm password do not match');
+            resetPasswordButton();
+            return;
+        }
+
+        // Send AJAX request
+        fetch('{% url "change_password" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                current_password: currentVal,
+                new_password: newVal,
+                confirm_password: confirmVal
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Close the modal safely
+            closePasswordModalSafely();
+
+            if (data.success) {
+                // Show success SweetAlert
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: true,
+                    confirmButtonColor: '#0d6efd',
+                    timerProgressBar: true
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            // Close modal
+            closePasswordModalSafely();
+            
+            // Handle specific error messages from server
+            let errorMessage = error.error || 'An error occurred. Please try again.';
+            
+            // Show error SweetAlert
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+                confirmButtonColor: '#0d6efd'
+            });
+
+            // If it's a current password error, highlight that field with the specific message
+            if (errorMessage.includes('Current password does not match')) {
+                setTimeout(() => {
+                    passwordModalInstance = new bootstrap.Modal(passwordModal);
+                    passwordModalInstance.show();
+                    showError(currentPassword, currentPasswordError, errorMessage);
+                }, 500);
+            }
+        })
+        .finally(() => {
+            resetPasswordButton();
+        });
+    });
+
+    // Helper functions for password modal
+    function resetPasswordButton() {
+        savePasswordBtn.disabled = false;
+        savePasswordBtn.textContent = 'Update Password';
+    }
+
+    function closePasswordModalSafely() {
+        if (passwordModalInstance) {
+            passwordModalInstance.hide();
+        } else {
+            const instance = bootstrap.Modal.getInstance(passwordModal);
+            if (instance) {
+                instance.hide();
+            }
+        }
+    }
+
+    function showError(input, errorElement, message) {
+        input.classList.add('is-invalid');
+        errorElement.textContent = message;
+    }
+});
+</script> -->
