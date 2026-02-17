@@ -35,6 +35,7 @@ def index(request):
         api="error, data not loading"
     return render(request,'index.html',{'api':api})
 
+
 @login_required
 def register_user(request):
 
@@ -156,7 +157,23 @@ def dashboard_view(request):
 #         ]  
 #     return render(request, "user_management.html", {"roles": roles})
    
+def get_countries(request):
+    api_request = requests.get("https://restcountries.com/v3.1/all?fields=name")
+
+    countries = []
+
+    if api_request.status_code == 200:
+        data = api_request.json()
+
+        for country in data:
+            countries.append(country["name"]["common"])
+
     
+    countries.sort()
+
+    return JsonResponse({"countries": countries}) 
+
+
 @login_required
 def user_management(request):
 
@@ -170,6 +187,15 @@ def user_management(request):
             ("teacher", "Teacher"),
             ("student", "Student"),
         ]
+
+    # try:
+    #     api_request = requests.get("https://restcountries.com/v3.1/all?fields=name,cca2")
+    #     api_data = json.loads(api_request.content)
+    #     countries = [country['name']['common'] for country in api_data]
+    #     countries.sort()
+    # except Exception as e:
+    #     countries = []
+
 
     return render(request, "user_management.html", {"roles": roles})
 
@@ -321,7 +347,7 @@ def users_list(request):
             users = users.filter(role=role_filter)
 
     
-    users = users.values("id", "first_name", "last_name", "role")
+    users = users.values("id", "first_name", "last_name", "role","nationality")
 
     return JsonResponse({"data": list(users)})
 
@@ -350,6 +376,7 @@ def add_user(request):
     
     if request.method == "POST":
         print("POST data:", request.POST)  
+        
         
         form = Registerform(request.POST)
         print("Form is valid?", form.is_valid())  
@@ -416,6 +443,7 @@ def update_user(request, id):
             user.last_name = request.POST.get('last_name', user.last_name)
             user.email = request.POST.get('email', user.email)
             user.role = request.POST.get('role', user.role)
+            user.nationality = request.POST.get('nationality',user.nationality)
             
             user.save()
 
@@ -446,6 +474,8 @@ def update_user(request, id):
                 'last_name': user.last_name,
                 'email': user.email,
                 'role': user.role,
+                'nationality':user.nationality,
+
                 "subjects": list(user.subjects.values_list("id", flat=True))
                 
             }
@@ -654,11 +684,29 @@ def update_course(request, id):
 def subject_list_ajax(request):
     subjects = Subjects.objects.filter(is_archive=False).values("id", "subject_name")
     return JsonResponse({"subjects": list(subjects)})
-###################################Batches#################################
+###################################Batches################################################################
 def batch_list(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         batches = Batches.objects.filter(is_archived=False)
+         
+        if request.user.role == "student":
+            enrolled_batches = Enrollments.objects.filter(
+                student=request.user,
+                is_archived=False
+            ).values_list("batch_id", flat=True)
+
+            batches = batches.filter(id__in=enrolled_batches)
+
+        elif request.user.role == "teacher":
+            teacher_batches = Subject_teacher.objects.filter(
+                teacher=request.user
+            ).values_list("batch_id", flat=True)
+            batches = batches.filter(id__in=teacher_batches)
+        
+
         course_id = request.GET.get('course')
+
+
 
         if course_id:
             batches = batches.filter(course_id=course_id)
@@ -1076,6 +1124,7 @@ def batch_enrollments(request, batch_id):
             batch=batch,
             is_archived=False,
             student__role='student'
+
         )
         
         data = []
@@ -1109,6 +1158,7 @@ def add_marks(request, enrollment_id):
     enrollment = get_object_or_404(Enrollments, id=enrollment_id)
     batch = enrollment.batch
     course = batch.course
+
     
     if request.method == "POST":
         try:

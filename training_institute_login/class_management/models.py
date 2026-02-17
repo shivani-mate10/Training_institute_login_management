@@ -55,6 +55,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_archived=models.BooleanField(default=False)
     subjects = models.ManyToManyField(Subjects, blank=True)
+    nationality = models.CharField(max_length=100, blank=True, null=True)
     
 
 

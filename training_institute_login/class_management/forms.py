@@ -9,10 +9,12 @@ class Registerform(UserCreationForm):
     last_name = forms.CharField(max_length=50)
     email = forms.EmailField()
     role = forms.ChoiceField(choices=User.ROLE_CHOICES)
-
+    nationality = forms.CharField(required=False)
+    
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'username', 'role', 'password1', 'password2']
+        fields = ['first_name', 'last_name', 'email', 'username', 'role','nationality','password1', 'password2']
+    
 
 
 

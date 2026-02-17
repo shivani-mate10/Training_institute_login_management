@@ -21,7 +21,7 @@
 </head>
 
 <body>
-    
+
     {% include 'menu.html' %}
 
     <div class="container">
@@ -67,7 +67,9 @@
                             <th>Course</th>
                             <th>Start Date</th>
                             <th>Duration</th>
+                            
                             <th>Actions</th>
+                            
                         </tr>
                     </thead>
                     <tbody>
@@ -236,15 +238,105 @@
     <script type="text/javascript" charset="utf8"
         src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
+    <script>
+        let loggedInRole = "{{ request.user.role }}";
+    </script>
 
     <script>
+        // $(document).ready(function () {
+        //     let savedbatchCourse = localStorage.getItem("savedbatchCourse");
+        //     if (savedbatchCourse) {
+        //         $('#courseFilter').val(savedbatchCourse);
+        //     }
+        //     table = $('#batchesTable').DataTable({
+        //         ajax: {
+        //             url: window.location.href,
+        //             data: function (d) {
+        //                 return {
+        //                     course: $('#courseFilter').val()
+        //                 }
+        //             }
+
+
+        //         },
+        //         columns: [
+        //             { data: 'id' },
+        //             { data: 'batch_name' },
+        //             { data: 'course' },
+        //             { data: 'start_date' },
+        //             { data: 'duration' },
+        //             {
+        //                 data: null,
+        //                 render: function (data, type, row) {
+        //                     let enrollmentUrl = "{% url 'batch_enrollments' 0 %}".replace('0', row.id);
+        //                     return `
+        //                 <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+        //                 |
+        //                 <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+        //                 |
+        //                 <button class="btn btn-sm btn-info view-btn" data-id="${row.id}">View</button>
+        //                 |
+        //                  <a href="${enrollmentUrl}" class="btn btn-sm btn-success">Enrollments</a>
+        //             `;
+        //                 }
+        //             }
+
+        //         ]
+        //     });
+
         $(document).ready(function () {
+
             let savedbatchCourse = localStorage.getItem("savedbatchCourse");
             if (savedbatchCourse) {
                 $('#courseFilter').val(savedbatchCourse);
             }
-            table = $('#batchesTable').DataTable({
+
+            let columns = [
+                { data: 'id' },
+                { data: 'batch_name' },
+                { data: 'course' },
+                { data: 'start_date' },
+                { data: 'duration' },
+
+                {
+                    data: null,
+                    render: function (data, type, row) {
+
+                        let enrollmentUrl =
+                            "{% url 'batch_enrollments' 0 %}".replace("0", row.id);
+
+                        let buttons = `
+                        <button class="btn btn-sm btn-info view-btn" data-id="${row.id}">
+                            View
+                        </button>
+                        |
+                        <a href="${enrollmentUrl}" class="btn btn-sm btn-success">
+                            Enrollments
+                        </a>
+                    `;
+
+
+                        if (loggedInRole === "admin") {
+                            buttons += `
+                            |
+                            <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">
+                                Edit
+                            </button>
+                            |
+                            <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">
+                                Delete
+                            </button>
+                        `;
+                        }
+
+                        return buttons;
+                    }
+                }
+            ];
+
+
+
+            let table = $('#batchesTable').DataTable({
                 ajax: {
                     url: window.location.href,
                     data: function (d) {
@@ -253,31 +345,12 @@
                         }
                     }
 
-                },
-                columns: [
-                    { data: 'id' },
-                    { data: 'batch_name' },
-                    { data: 'course' },
-                    { data: 'start_date' },
-                    { data: 'duration' },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            let enrollmentUrl = "{% url 'batch_enrollments' 0 %}".replace('0', row.id);
-                            return `
-                        <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
-                        |
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
-                        |
-                        <button class="btn btn-sm btn-info view-btn" data-id="${row.id}">View</button>
-                        |
-                         <a href="${enrollmentUrl}" class="btn btn-sm btn-success">Enrollments</a>
-                    `;
-                        }
-                    }
 
-                ]
+                },
+                columns: columns
+
             });
+
             if (savedbatchCourse) {
                 table.ajax.reload();
             }

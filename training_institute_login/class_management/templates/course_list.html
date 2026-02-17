@@ -73,7 +73,9 @@
                             <th>Course ID</th>
                             <th>Course Name</th>
                             <th>Subjects</th>
+                            {% if request.user.role == "admin" %}
                             <th>Actions</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -169,9 +171,48 @@
         src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-
     <script>
+        let loggedInRole = "{{ request.user.role }}";
+    </script>
+    <script>
+        // $(document).ready(function () {
+        //     let savedSubject = localStorage.getItem("savedSubject");
+        //     if (savedSubject) {
+        //         $('#subjectFilter').val(savedSubject);
+        //     }
+        //     let savedCourse = localStorage.getItem("savedCourse");
+        //     if (savedCourse) {
+        //         $('#courseSearch').val(savedCourse);
+        //     }
+
+        //     table = $('#coursesTable').DataTable({
+        //         ajax: {
+        //             url: window.location.href,
+        //             data: function (d) {
+        //                 return {
+        //                     search: $('#courseSearch').val(),
+        //                     subject: $('#subjectFilter').val()
+        //                 }
+        //             }
+        //         },
+        //         columns: [
+        //             { data: 'id' },
+        //             { data: 'course_name' },
+        //             { data: 'subjects' },
+        //             {
+        //                 data: null,
+        //                 render: function (data, type, row) {
+        //                     return `
+        //                 <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+        //                 <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+        //             `;
+        //                 }
+        //             }
+
+        //         ]
+        //     });
         $(document).ready(function () {
+
             let savedSubject = localStorage.getItem("savedSubject");
             if (savedSubject) {
                 $('#subjectFilter').val(savedSubject);
@@ -181,7 +222,27 @@
                 $('#courseSearch').val(savedCourse);
             }
 
-            table = $('#coursesTable').DataTable({
+            
+            let columns = [
+                { data: 'id' },
+                { data: 'course_name' },
+                { data: 'subjects' },
+            ];
+
+            
+            if (loggedInRole === "admin") {
+                columns.push({
+                    data: null,
+                    render: function (data, type, row) {
+                        return `
+                    <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+                    <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+                `;
+                    }
+                });
+            }
+
+            let table = $('#coursesTable').DataTable({
                 ajax: {
                     url: window.location.href,
                     data: function (d) {
@@ -190,23 +251,12 @@
                             subject: $('#subjectFilter').val()
                         }
                     }
+                    
                 },
-                columns: [
-                    { data: 'id' },
-                    { data: 'course_name' },
-                    { data: 'subjects' },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            return `
-                        <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
-                    `;
-                        }
-                    }
+                columns: columns
 
-                ]
             });
+
              if (savedCourse) {
                 table.ajax.reload();
             }

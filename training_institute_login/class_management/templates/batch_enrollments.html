@@ -152,7 +152,9 @@
         src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-
+     <script>
+        let loggedInRole = "{{ request.user.role }}";
+    </script>
     <script>
         $(document).ready(function () {
 
@@ -172,11 +174,18 @@
                     { data: 'student_name' },
                     { data: 'batch_name' },
                     { data: 'course_name' },
+
                     {
                         data: null,
                         render: function (data, type, row) {
+
                             const downloadUrl = `/marks/download/${row.enrollment_id}/`;
-                            return `
+
+                            
+                            let addMarksBtn = "";
+
+                            if (loggedInRole !== "student") {
+                                addMarksBtn = `
                             <button class="btn btn-primary btn-sm add-marks-btn" 
                                     data-bs-toggle="modal"
                                     data-bs-target="#addMarksModal" 
@@ -187,22 +196,60 @@
                                 Add Marks
                             </button>
                             |
-                            <button class="btn btn-info btn-sm view-mark-btn" 
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#viewmarkModal" 
-                                    data-enrollment-id="${row.enrollment_id}"
-                                    data-student-name="${row.student_name}"
-                                    data-batch-name="${row.batch_name}"
-                                    data-course-name="${row.course_name}">
-                                Result
-                            </button>
-                            |
-                            <a href="${downloadUrl}" class="btn btn-sm btn-success" target="_blank">
-                                Download Result
-                            </a>
                         `;
+                                        }
+
+                                        return `
+                        ${addMarksBtn}
+
+                        <button class="btn btn-info btn-sm view-mark-btn" 
+                                data-bs-toggle="modal"
+                                data-bs-target="#viewmarkModal" 
+                                data-enrollment-id="${row.enrollment_id}"
+                                data-student-name="${row.student_name}"
+                                data-batch-name="${row.batch_name}"
+                                data-course-name="${row.course_name}">
+                            Result
+                        </button>
+                        |
+                        <a href="${downloadUrl}" class="btn btn-sm btn-success" target="_blank">
+                            Download Result
+                        </a>
+                    `;
                         }
                     }
+
+                    // {
+                    //     data: null,
+                    //     render: function (data, type, row) {
+                    //         const downloadUrl = `/marks/download/${row.enrollment_id}/`;
+                    //         return `
+                    //         <button class="btn btn-primary btn-sm add-marks-btn" 
+                    //                 data-bs-toggle="modal"
+                    //                 data-bs-target="#addMarksModal" 
+                    //                 data-enrollment-id="${row.enrollment_id}"
+                    //                 data-student-name="${row.student_name}"
+                    //                 data-batch-name="${row.batch_name}"
+                    //                 data-course-name="${row.course_name}">
+                    //             Add Marks
+                    //         </button>
+                    //         |
+                    //         <button class="btn btn-info btn-sm view-mark-btn" 
+                    //                 data-bs-toggle="modal"
+                    //                 data-bs-target="#viewmarkModal" 
+                    //                 data-enrollment-id="${row.enrollment_id}"
+                    //                 data-student-name="${row.student_name}"
+                    //                 data-batch-name="${row.batch_name}"
+                    //                 data-course-name="${row.course_name}">
+                    //             Result
+                    //         </button>
+                    //         |
+                    //         <a href="${downloadUrl}" class="btn btn-sm btn-success" target="_blank">
+                    //             Download Result
+                    //         </a>
+                    //     `;
+                    //     }
+                    // }
                 ],
                 pageLength: 10,
                 language: {
@@ -269,6 +316,7 @@
                 });
             }
 
+            
             $(document).on("submit", "#addMarksForm", function (e) {
                 e.preventDefault();
 

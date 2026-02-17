@@ -49,7 +49,9 @@
                         <tr>
                             <th>Subject ID</th>
                             <th>Subject Name</th>
+                            {% if request.user.role == "admin" %}
                             <th>Actions</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -122,30 +124,67 @@
     <script type="text/javascript" charset="utf8"
         src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        let loggedInRole = "{{ request.user.role }}";
+    </script>
 
     <script>
 
+        // $(document).ready(function () {
+        //     let savedSearch = localStorage.getItem("subjectSearch");
+        //     table = $('#subjectsTable').DataTable({
+        //         ajax: {
+        //             url: window.location.href,
+        //         },
+        //         columns: [
+        //             { data: 'id' },
+        //             { data: 'subject_name' },
+        //             {
+        //                 data: null,
+        //                 render: function (data, type, row) {
+        //                     return `
+        //                 <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+        //                 <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+        //             `;
+        //                 }
+        //             }
+
+        //         ]
+        //     });
+
+
         $(document).ready(function () {
+
             let savedSearch = localStorage.getItem("subjectSearch");
-            table = $('#subjectsTable').DataTable({
+
+            
+            let columns = [
+                { data: 'id' },
+                { data: 'subject_name' },
+            ];
+
+            
+            if (loggedInRole === "admin") {
+                columns.push({
+                    data: null,
+                    render: function (data, type, row) {
+                        return `
+                    <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+                    <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+                `;
+                    }
+                });
+            }
+
+            
+            let table = $('#subjectsTable').DataTable({
                 ajax: {
                     url: window.location.href,
                 },
-                columns: [
-                    { data: 'id' },
-                    { data: 'subject_name' },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            return `
-                        <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
-                    `;
-                        }
-                    }
-
-                ]
+                columns: columns
             });
+
+
 
             if (savedSearch) {
                 table.search(savedSearch).draw();

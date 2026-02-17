@@ -7,6 +7,8 @@
     <title>Training_institute_login_management_system</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
@@ -30,7 +32,7 @@
 
 
 
-        
+
         <div class="row mb-3">
             <div class="col-md-3">
                 <label>Filter by Role:</label>
@@ -42,7 +44,7 @@
                 </select>
             </div>
         </div>
-        
+
 
 
 
@@ -55,7 +57,10 @@
                             <th>ID</th>
                             <th>Name</th>
                             <th>Role</th>
+                            <th>Nationality</th>
+                            {% if request.user.role == "admin" %}
                             <th>Action</th>
+                            {% endif %}
                         </tr>
                     </thead>
                 </table>
@@ -95,6 +100,27 @@
                                 <label>Email</label>
                                 <input type="email" name="email" class="form-control">
                             </div>
+
+                            <!-- <div class="mb-3">
+                                <label for="nationality" class="form-label">Nationality</label>
+                                <select class="form-control" id="nationality" name="nationality">
+                                    <option value="">Select Nationality</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}">
+                                        {{ country }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div> -->
+                            <div class="mb-3">
+                                <label for="nationality" class="form-label">Nationality</label>
+                                <select class="form-control" id="nationality" name="nationality">
+                                    <option value="">Select Nationality</option>
+                                </select>
+                            </div>
+
+
+
 
                             <div class="mb-2">
                                 <label>Role</label>
@@ -158,6 +184,25 @@
                                 <input type="email" id="edit_email" name="email" class="form-control" required>
                             </div>
 
+                            <!-- <div class="mb-3">
+                                <label for="nationality" class="form-label">Nationality</label>
+                                <select class="form-control" id="editnationality" name="nationality">
+                                    <option value="">Select Nationality</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}">
+                                        {{ country }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div> -->
+                            <div class="mb-3">
+                                <label for="nationality" class="form-label">Nationality</label>
+                                <select class="form-control" id="editnationality" name="nationality">
+                                    <option value="">Select Nationality</option>
+                                </select>
+                            </div>
+
+
                             <div class="mb-2">
                                 <label>Role</label>
                                 <select id="edit_role" name="role" class="form-control">
@@ -193,76 +238,143 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let loggedInRole = "{{ request.user.role }}";
+    </script>
 
 
     <script>
+        // $(document).ready(function () {
+        //     let savedRole = localStorage.getItem("savedRole");
+        //     if (savedRole) {
+        //         $('#roleFilter').val(savedRole);
+        //     }
+        //     let table = $('#usersTable').DataTable({
+        //         ajax: {
+        //             url: "{% url 'users_ajax' %}",
+        //             data: function (d) {
+
+        //                 d.role = $('#roleFilter').val();
+        //             }
+
+        //         },
+
+        //         columns: [
+        //             { data: "id" },
+        //             {
+        //                 data: null,
+        //                 render: function (data, type, row) {
+        //                     return row.first_name + " " + row.last_name;
+        //                 }
+        //             },
+        //             { data: "role" },
+        //             {
+        //                 data: null,
+        //                 render: function (data, type, row) {
+        //                     return `
+        //                 <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+        //                 <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+
+        //             `;
+        //                 }
+        //             }
+        //         ]
+        //     });
+
         $(document).ready(function () {
+
+            // $('#nationality').select2({
+            //     dropdownParent: $('#addUserModal'),
+            //     placeholder: "Select Nationality",
+            //     width: "100%"
+            // });
+
+            // // Edit Modal dropdown
+            // $('#editnationality').select2({
+            //     dropdownParent: $('#editUserModal'),
+            //     placeholder: "Select Nationality",
+            //     width: "100%"
+            // });
+
             let savedRole = localStorage.getItem("savedRole");
             if (savedRole) {
                 $('#roleFilter').val(savedRole);
             }
+
+
+            let columns = [
+                { data: "id" },
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        return row.first_name + " " + row.last_name;
+                    }
+                },
+                { data: "role" },
+                { data: "nationality" }
+            ];
+
+
+            if (loggedInRole === "admin") {
+                columns.push({
+                    data: null,
+                    render: function (data, type, row) {
+                        return `
+                    <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">
+                        Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">
+                        Delete
+                    </button>
+                `;
+                    }
+                });
+            }
+
+
             let table = $('#usersTable').DataTable({
                 ajax: {
                     url: "{% url 'users_ajax' %}",
                     data: function (d) {
-
                         d.role = $('#roleFilter').val();
                     }
-
                 },
-
-                columns: [
-                    { data: "id" },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            return row.first_name + " " + row.last_name;
-                        }
-                    },
-                    { data: "role" },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            return `
-                        <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
-                        
-                    `;
-                        }
-                    }
-                ]
+                columns: columns
             });
 
-            
+
+
+
             if (savedRole) {
                 table.ajax.reload();
             }
 
-            
+
             $('#roleFilter').on('change', function () {
                 localStorage.setItem("savedRole", $(this).val());
                 table.ajax.reload();
             });
 
-            
-            
-
-             // let savedRole = localStorage.getItem("rolefilter");
-          
-
-          // if (savedRole) {
-
-           //     $('#roleFilter').val(savedRole);
 
 
-             //     table.ajax.reload();
+
+            // let savedRole = localStorage.getItem("rolefilter");
+
+
+            // if (savedRole) {
+
+            //     $('#roleFilter').val(savedRole);
+
+
+            //     table.ajax.reload();
 
 
             //     localStorage.removeItem("rolefilter");
-           // }
+            // }
 
             // $('#roleFilter').on('change', function () {
             //     table.ajax.reload();
@@ -283,9 +395,95 @@
                 return cookieValue;
             }
 
+            // let countriesLoaded = false;
+
+            // $("#addUserModal").on("shown.bs.modal", function () {
+            //     console.log("AJAX Request Sent!");
+
+
+            //     if (!countriesLoaded) {
+
+            //         $.ajax({
+            //             url: "/ajax/get-countries/",
+            //             type: "GET",
+
+            //             success: function (response) {
+
+            //                 let dropdown = $("#nationality");
+
+
+            //                 response.countries.forEach(function (country) {
+            //                     dropdown.append(
+            //                         `<option value="${country}">${country}</option>`
+            //                     );
+            //                 });
+
+
+            //                 dropdown.select2({
+            //                     dropdownParent: $("#addUserModal"),
+            //                     width: "100%"
+            //                 });
+
+            //                 countriesLoaded = true;
+            //             }
+            //         });
+            //     }
+            // });
+
+            function loadCountries(selectId, selectedValue = "" , callback = null) {
+
+                $.ajax({
+                    url: "/ajax/get-countries/",
+                    type: "GET",
+
+                    success: function (response) {
+
+                        console.log("Response:", response);
+
+                        let dropdown = $(selectId);
+
+
+                        dropdown.empty();
+
+
+                        dropdown.append(`<option value="">Select Nationality</option>`);
+
+
+                        response.countries.forEach(function (country) {
+                            dropdown.append(
+                                `<option value="${country}">${country}</option>`
+                            );
+                        });
+                        if (selectedValue) {
+                            dropdown.val(selectedValue).trigger("change");
+                        }
+
+                        if (callback) callback();
+
+
+                        dropdown.trigger("change");
+
+                        console.log("Countries loaded into dropdown!");
+                    },
+
+                    error: function () {
+                        console.log("Error loading countries");
+                    }
+                });
+
+
+            }
+            $("#addUserModal").on("shown.bs.modal", function () {
+                loadCountries("#nationality");
+            });
+
+
+
+
 
             $("#addUserForm").on("submit", function (e) {
                 e.preventDefault();
+
 
                 let form = $(this);
                 console.log("Form action:", form.attr("action"));
@@ -302,6 +500,7 @@
                             Swal.fire("User added succesfully!");
                             $("#addUserModal").modal("hide");
                             form[0].reset();
+                            $("#nationality").val("").trigger("change");
 
 
                             table.ajax.reload(null, false);
@@ -353,8 +552,19 @@
                     });
                 }
             });
+
+            // $("#editUserModal").on("shown.bs.modal", function () {
+
+            //     let nationality = $("#editnationality").data("value");
+            //     loadCountries("#editnationality", nationality);
+
+            // });
+
+            
+
             $('#usersTable').on('click', '.edit-btn', function () {
                 const userId = $(this).data('id');
+                $("#editnationality").html(`<option value=""></option>`).trigger("change");
 
 
                 $.ajax({
@@ -368,6 +578,9 @@
                             $('#edit_last_name').val(response.user.last_name);
                             $('#edit_email').val(response.user.email);
                             $('#edit_role').val(response.user.role);
+                            // $('#editnationality').val(response.user.nationality).trigger("change");
+                            loadCountries("#editnationality", response.user.nationality);
+
                             if (response.user.role === "teacher") {
                                 $("#subjectField").show();
                                 $.ajax({
@@ -409,6 +622,7 @@
 
             $('#editUserForm').on('submit', function (e) {
                 e.preventDefault();
+
                 const userId = $('#edit_user_id').val();
                 const formData = $(this).serialize();
 
@@ -434,6 +648,10 @@
                     }
                 });
             });
+
+            
+            
+
 
 
         });

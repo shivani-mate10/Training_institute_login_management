@@ -69,7 +69,9 @@
                             <th>Student Name</th>
                             <th>Batch Name</th>
                             <th>Start Date</th>
+                            {% if request.user.role == "admin" %}
                             <th>Actions</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -133,14 +135,70 @@
         src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-
     <script>
+        let loggedInRole = "{{ request.user.role }}";
+    </script>
+    <script>
+        // $(document).ready(function () {
+        //     let savedBatch = localStorage.getItem("savedBatch");
+        //     if (savedBatch) {
+        //         $('#batchFilter').val(savedBatch);
+        //     }
+        //     table = $('#enrollmentTable').DataTable({
+        //         ajax: {
+        //             url: window.location.href,
+        //             data: function (d) {
+        //                 return {
+        //                     batch: $('#batchFilter').val()
+        //                 }
+        //             }
+        //         },
+        //         columns: [
+        //             { data: 'id' },
+        //             { data: 'student_name' },
+        //             { data: 'batch_name' },
+        //             { data: 'start_date' },
+        //             {
+        //                 data: null,
+        //                 render: function (data, type, row) {
+        //                     return `
+        //                 <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+        //             `;
+        //                 }
+        //             }
+
+        //         ]
+        //     });
+
+
         $(document).ready(function () {
+
             let savedBatch = localStorage.getItem("savedBatch");
             if (savedBatch) {
                 $('#batchFilter').val(savedBatch);
             }
-            table = $('#enrollmentTable').DataTable({
+
+            
+            let columns = [
+                { data: 'id' },
+                { data: 'student_name' },
+                { data: 'batch_name' },
+                { data: 'start_date' }
+            ];
+
+            
+            if (loggedInRole === "admin") {
+                columns.push({
+                    data: null,
+                    render: function (data, type, row) {
+                        return `
+                    <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+                `;
+                    }
+                });
+            }
+
+            let table = $('#enrollmentTable').DataTable({
                 ajax: {
                     url: window.location.href,
                     data: function (d) {
@@ -149,22 +207,10 @@
                         }
                     }
                 },
-                columns: [
-                    { data: 'id' },
-                    { data: 'student_name' },
-                    { data: 'batch_name' },
-                    { data: 'start_date' },
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            return `
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
-                    `;
-                        }
-                    }
+                columns: columns
 
-                ]
             });
+
             if (savedBatch) {
                 table.ajax.reload();
             }
