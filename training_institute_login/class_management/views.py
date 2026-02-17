@@ -24,7 +24,16 @@ import json
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.hashers import check_password
 import json
+import requests
 
+
+def index(request):
+    api_request=requests.get("https://restcountries.com/v3.1/all?fields=name,cca2")
+    try:
+        api=json.loads(api_request.content)
+    except Exception as e:
+        api="error, data not loading"
+    return render(request,'index.html',{'api':api})
 
 @login_required
 def register_user(request):
@@ -129,27 +138,193 @@ def dashboard_view(request):
     
     return render(request, 'dashboard.html', context)
 
+# @login_required
+# def user_management(request):
+#     if request.user.role == "admin":
+#         roles = User.ROLE_CHOICES
+
+#     elif request.user.role == "teacher":
+#         roles = [
+#             ("teacher", "Teacher"),
+#             ("student", "Student"),
+#         ]
+
+#     elif request.user.role == "student":
+#         roles = [
+#             ("teacher", "Teacher"),
+#             ("student", "Student"),
+#         ]  
+#     return render(request, "user_management.html", {"roles": roles})
+   
+    
 @login_required
 def user_management(request):
-    roles = User.ROLE_CHOICES
-    return render(request, 'user_management.html', {'roles': roles})
+
     
+    if request.user.role == "admin":
+        roles = User.ROLE_CHOICES
+
+    
+    else:
+        roles = [
+            ("teacher", "Teacher"),
+            ("student", "Student"),
+        ]
+
+    return render(request, "user_management.html", {"roles": roles})
+
+# @login_required
+# def users_list(request):
+    
+#     users = User.objects.filter(is_archived=False)
+    
+    
+#     role_filter = request.GET.get('role')
+#     if role_filter:
+#         users = users.filter(role=role_filter)
+    
+    
+#     users = users.values("id", "first_name", "last_name", "role")
+
+    
+#     return JsonResponse({"data": list(users)})
+
+# from django.http import JsonResponse
+# from django.contrib.auth.decorators import login_required
+# from .models import User, Subject_teacher, Enrollments
 
 
 @login_required
 def users_list(request):
+
     
     users = User.objects.filter(is_archived=False)
-    
+
     
     role_filter = request.GET.get('role')
-    if role_filter:
-        users = users.filter(role=role_filter)
+    if request.user.role == "student":
+
+
+        # users = User.objects.filter(
+        #     id=request.user.id,
+        #     is_archived=False
+        # )
+        student_batches = Enrollments.objects.filter(
+            student=request.user,
+            is_archived=False
+        ).values_list("batch_id", flat=True)
+
+        
+        student_teachers = Subject_teacher.objects.filter(
+            batch_id__in=student_batches
+        ).values_list("teacher_id", flat=True)
+
+        if role_filter == "student":
+
+            
+            users = User.objects.filter(
+                id=request.user.id,
+                is_archived=False
+            )
+
+        elif role_filter == "teacher":
+
+            
+            users = User.objects.filter(
+                id__in=student_teachers,
+                role="teacher",
+                is_archived=False
+            )
+
+        else:
+            
+            users = User.objects.filter(
+                id=request.user.id,
+                is_archived=False
+            ) | User.objects.filter(
+                id__in=student_teachers,
+                role="teacher",
+                is_archived=False
+            )
+
+        users = users.distinct()
+
+       
+        # users = User.objects.filter(
+        #     id=request.user.id,
+        #     is_archived=False
+        # ) | User.objects.filter(
+        #     id__in=student_teachers,
+        #     role="teacher",
+        #     is_archived=False
+        # )
+
+       
+
     
+    elif request.user.role == "teacher":
+
+        
+        teacher_batches = Subject_teacher.objects.filter(
+            teacher=request.user
+        ).values_list("batch_id", flat=True)
+
+        
+        teacher_students = Enrollments.objects.filter(
+            batch_id__in=teacher_batches,
+            is_archived=False
+        ).values_list("student_id", flat=True)
+
+        
+        users = User.objects.filter(
+            is_archived=False
+        ).filter(
+            role="teacher"
+        ) | User.objects.filter(
+            id__in=teacher_students,
+            role="student"
+        )
+
+        if role_filter == "teacher":
+            
+            users = User.objects.filter(
+                role="teacher",
+                is_archived=False
+            )
+
+        elif role_filter == "student":
+            
+            users = User.objects.filter(
+                id__in=teacher_students,
+                role="student",
+                is_archived=False
+            )
+
+        else:
+            
+            users = User.objects.filter(
+                role="teacher",
+                is_archived=False
+            ) | User.objects.filter(
+                id__in=teacher_students,
+                role="student",
+                is_archived=False
+            )
+
+
+       
+        users = users.distinct()
+
+    else:
+        
+        if role_filter:
+            users = users.filter(role=role_filter)
+
     
     users = users.values("id", "first_name", "last_name", "role")
-    
+
     return JsonResponse({"data": list(users)})
+
 
 
 # @login_required
@@ -196,6 +371,11 @@ def add_user(request):
 
 @login_required
 def delete_user(request, id):
+    if request.user.role != "admin":
+        return JsonResponse({
+            "success": False,
+            "message": "You are not allowed to delete users."
+        })
     if request.method == "POST":
         try:
             user = User.objects.get(id=id)

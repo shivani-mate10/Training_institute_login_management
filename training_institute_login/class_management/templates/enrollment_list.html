@@ -136,6 +136,10 @@
 
     <script>
         $(document).ready(function () {
+            let savedBatch = localStorage.getItem("savedBatch");
+            if (savedBatch) {
+                $('#batchFilter').val(savedBatch);
+            }
             table = $('#enrollmentTable').DataTable({
                 ajax: {
                     url: window.location.href,
@@ -161,8 +165,12 @@
 
                 ]
             });
+            if (savedBatch) {
+                table.ajax.reload();
+            }
 
             $('#batchFilter').on('change', function () {
+                localStorage.setItem("savedBatch", $(this).val());
                 table.ajax.reload();
             });
 

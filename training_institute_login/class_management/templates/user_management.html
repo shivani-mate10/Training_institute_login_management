@@ -30,7 +30,7 @@
 
 
 
-
+        
         <div class="row mb-3">
             <div class="col-md-3">
                 <label>Filter by Role:</label>
@@ -42,6 +42,7 @@
                 </select>
             </div>
         </div>
+        
 
 
 
@@ -126,7 +127,8 @@
             </div>
         </div>
 
-
+        {% if request.user.role != "student" %}
+        {% if request.user.role != "teacher" %}
         <div class="modal fade" id="editUserModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -184,6 +186,8 @@
                 </div>
             </div>
         </div>
+        {% endif %}
+        {% endif %}
 
 
     </div>
@@ -196,6 +200,10 @@
 
     <script>
         $(document).ready(function () {
+            let savedRole = localStorage.getItem("savedRole");
+            if (savedRole) {
+                $('#roleFilter').val(savedRole);
+            }
             let table = $('#usersTable').DataTable({
                 ajax: {
                     url: "{% url 'users_ajax' %}",
@@ -221,14 +229,44 @@
                             return `
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
                         <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+                        
                     `;
                         }
                     }
                 ]
             });
+
+            
+            if (savedRole) {
+                table.ajax.reload();
+            }
+
+            
             $('#roleFilter').on('change', function () {
+                localStorage.setItem("savedRole", $(this).val());
                 table.ajax.reload();
             });
+
+            
+            
+
+             // let savedRole = localStorage.getItem("rolefilter");
+          
+
+          // if (savedRole) {
+
+           //     $('#roleFilter').val(savedRole);
+
+
+             //     table.ajax.reload();
+
+
+            //     localStorage.removeItem("rolefilter");
+           // }
+
+            // $('#roleFilter').on('change', function () {
+            //     table.ajax.reload();
+            // });
 
             function getCookie(name) {
                 let cookieValue = null;

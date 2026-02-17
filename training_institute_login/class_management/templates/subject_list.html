@@ -126,6 +126,7 @@
     <script>
 
         $(document).ready(function () {
+            let savedSearch = localStorage.getItem("subjectSearch");
             table = $('#subjectsTable').DataTable({
                 ajax: {
                     url: window.location.href,
@@ -145,6 +146,16 @@
 
                 ]
             });
+
+            if (savedSearch) {
+                table.search(savedSearch).draw();
+            }
+
+            
+            table.on('search.dt', function () {
+                localStorage.setItem("subjectSearch", table.search());
+            });
+
 
             function getCookie(name) {
                 let cookieValue = null;

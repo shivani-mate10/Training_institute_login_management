@@ -240,6 +240,10 @@
 
     <script>
         $(document).ready(function () {
+            let savedbatchCourse = localStorage.getItem("savedbatchCourse");
+            if (savedbatchCourse) {
+                $('#courseFilter').val(savedbatchCourse);
+            }
             table = $('#batchesTable').DataTable({
                 ajax: {
                     url: window.location.href,
@@ -262,8 +266,11 @@
                             let enrollmentUrl = "{% url 'batch_enrollments' 0 %}".replace('0', row.id);
                             return `
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">Edit</button>
+                        |
                         <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}">Delete</button>
+                        |
                         <button class="btn btn-sm btn-info view-btn" data-id="${row.id}">View</button>
+                        |
                          <a href="${enrollmentUrl}" class="btn btn-sm btn-success">Enrollments</a>
                     `;
                         }
@@ -271,8 +278,12 @@
 
                 ]
             });
+            if (savedbatchCourse) {
+                table.ajax.reload();
+            }
 
             $('#courseFilter').on('change', function () {
+                localStorage.setItem("savedbatchCourse", $(this).val());
                 table.ajax.reload();
             });
 

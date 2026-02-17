@@ -172,6 +172,15 @@
 
     <script>
         $(document).ready(function () {
+            let savedSubject = localStorage.getItem("savedSubject");
+            if (savedSubject) {
+                $('#subjectFilter').val(savedSubject);
+            }
+            let savedCourse = localStorage.getItem("savedCourse");
+            if (savedCourse) {
+                $('#courseSearch').val(savedCourse);
+            }
+
             table = $('#coursesTable').DataTable({
                 ajax: {
                     url: window.location.href,
@@ -198,6 +207,24 @@
 
                 ]
             });
+             if (savedCourse) {
+                table.ajax.reload();
+            }
+
+             $('#courseSearch').on('keyup', function () {
+                localStorage.setItem("savedCourse", $(this).val());
+                table.ajax.reload();
+            });
+
+            if (savedSubject) {
+                table.ajax.reload();
+            }
+
+
+            $('#subjectFilter').on('change', function () {
+                localStorage.setItem("savedSubject", $(this).val());
+                table.ajax.reload();
+            });
 
 
             function getCookie(name) {
@@ -215,13 +242,8 @@
                 return cookieValue;
             }
 
-            $('#courseSearch').on('keyup', function () {
-                table.ajax.reload();
-            });
 
-            $('#subjectFilter').on('change', function () {
-                table.ajax.reload();
-            });
+           
 
             $(document).on("submit", ".add-course-form", function (e) {
                 e.preventDefault();
