@@ -20,7 +20,16 @@
 
     {% include 'menu.html' %}
     <div class="container">
+        <div class="row">
+            <div class="col-12 py-4 d-flex justify-content-center align-items-center gap-3">
 
+                <form action="{% url 'upload_students_csv' %}" method="get" class="mb-0">
+                    <button class="btn btn-outline-primary" type="submit">
+                        Upload student
+                    </button>
+                </form>
+            </div>
+        </div>
 
         <div class="row">
             <div class="col-12 py-4">
@@ -430,7 +439,7 @@
             //     }
             // });
 
-            function loadCountries(selectId, selectedValue = "" , callback = null) {
+            function loadCountries(selectId, selectedValue = "", callback = null) {
 
                 $.ajax({
                     url: "/ajax/get-countries/",
@@ -560,7 +569,7 @@
 
             // });
 
-            
+
 
             $('#usersTable').on('click', '.edit-btn', function () {
                 const userId = $(this).data('id');
@@ -649,8 +658,8 @@
                 });
             });
 
-            
-            
+
+
 
 
 

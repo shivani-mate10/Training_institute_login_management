@@ -25,6 +25,8 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.hashers import check_password
 import json
 import requests
+import csv
+from django.contrib.auth.hashers import make_password
 
 
 def index(request):
@@ -1568,12 +1570,190 @@ def change_password(request):
     
     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 
+#########################################Upload CSV################################
+
+# def upload_students_csv(request):
+
+#     if request.method == "POST":
+
+#         csv_file = request.FILES.get("csv_file")
+
+        
+#         if not csv_file:
+#             messages.error(request, "No file uploaded!")
+#             return redirect("upload_students_csv")
+
+        
+#         if not csv_file.name.endswith(".csv"):
+#             messages.error(request, "Only CSV files are allowed!")
+#             return redirect("upload_students_csv")
+
+        
+#         decoded_file = csv_file.read().decode("utf-8").splitlines()
+#         reader = csv.DictReader(decoded_file)
+
+#         created_count = 0
+#         reader.fieldnames = [h.strip() for h in reader.fieldnames]
+
+#         for row in reader:
+
+#             first_name = row["First Name"].strip()
+#             last_name = row["Last Name"].strip()
+#             email = row["email"].strip()
+#             batch_id = row["Batch_id"].strip()
+
+#             username = email
+#             raw_password = f"{first_name}@123"
+
+            
+#             try:
+#                 batch = Batches.objects.get(id=batch_id)
+#             except Batches.DoesNotExist:
+#                 continue  
+
+            
+#             if User.objects.filter(email=email).exists():
+#                 continue
+
+            
+#             student = User.objects.create(
+#                 first_name=first_name,
+#                 last_name=last_name,
+#                 email=email,
+#                 username=username,
+#                 role="student",
+#                 nationality="India",
+#                 password=make_password(raw_password),
+#             )
+
+            
+#             Enrollments.objects.create(
+#                 batch=batch,
+#                 student=student
+#             )
+
+#             created_count += 1
+
+#         messages.success(
+#             request,
+#             f"{created_count} students uploaded and enrolled successfully!"
+#         )
+
+#         return redirect("upload_students_csv")
+
+#     return render(request, "admin/upload_students.html")
 
 
 
 
 
 
+
+def upload_students_csv(request):
+
+    if request.method == "POST":
+
+        csv_file = request.FILES.get("csv_file")
+
+        if not csv_file:
+            return JsonResponse({
+                "success": False,
+                "message": "No file uploaded!"
+            })
+
+        if not csv_file.name.endswith(".csv"):
+            return JsonResponse({
+                "success": False,
+                "message": "Only CSV files are allowed!"
+            })
+
+        decoded_file = csv_file.read().decode("utf-8").splitlines()
+        reader = csv.DictReader(decoded_file)
+
+        
+        reader.fieldnames = [h.strip() for h in reader.fieldnames]
+
+        created_count = 0
+        errors = []
+        row_number = 1
+
+        for row in reader:
+            row_number += 1
+
+            first_name = row.get("First Name", "").strip()
+            last_name  = row.get("Last Name", "").strip()
+            email      = row.get("email", "").strip()
+            batch_id   = row.get("Batch_id", "").strip()
+
+            student_name = f"{first_name} {last_name}".strip()
+            if not student_name:
+                student_name = "Unknown Student"
+
+
+           
+            # if not first_name or not last_name or not email or not batch_id:
+            #     errors.append(f"Row {row_number}: Incomplete student info.")
+            #     continue
+            missing_fields = []
+
+            if not first_name:
+                missing_fields.append("First Name")
+            if not last_name:
+                missing_fields.append("Last Name")
+            if not email:
+                missing_fields.append("Email")
+            if not batch_id:
+                missing_fields.append("Batch ID")
+
+            if missing_fields:
+                errors.append(
+                    f"Row {row_number}: Missing {', '.join(missing_fields)}."
+                )
+                continue
+
+
+           
+            try:
+                batch = Batches.objects.get(id=batch_id)
+            except Batches.DoesNotExist:
+                errors.append(f"Cannot add {student_name}: Batch ID {batch_id} does not exist.")
+
+                continue
+
+            
+            if User.objects.filter(email=email).exists():
+                errors.append(f"Cannot add {student_name}: Email ({email}) already exists.")
+
+                continue
+
+            
+            raw_password = f"{first_name}@123"
+
+            student = User.objects.create(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                username=email,
+                role="student",
+                nationality="India",
+                password=make_password(raw_password),
+            )
+
+            
+            Enrollments.objects.create(
+                batch=batch,
+                student=student
+            )
+
+            created_count += 1
+
+        return JsonResponse({
+            "success": True,
+            "created": created_count,
+            "errors": errors
+        })
+
+    return render(request, "admin/upload_students.html")
 
 
 

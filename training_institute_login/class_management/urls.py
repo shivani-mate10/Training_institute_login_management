@@ -2,7 +2,7 @@ from django.urls import path
 from .views import register_user,login_user,dashboard_view,logout_user,add_user,delete_user,update_user,users_list
 from .views import subject_list ,course_list,add_course,delete_course,update_course,add_subject,delete_subject,update_subject
 from .views import subject_list_ajax,batch_list,add_batch,subject_teacher_list,delete_batch,update_batch,enrollment_list,add_enrollment,delete_enrollment
-from .views import batch_enrollments,add_marks,download_result_pdf,user_management,change_email, change_password,index,get_countries
+from .views import batch_enrollments,add_marks,download_result_pdf,user_management,change_email, change_password,index,get_countries,upload_students_csv
 
 
 urlpatterns = [
@@ -55,6 +55,7 @@ urlpatterns = [
     path('index/',index,name='index'),
 
     path("ajax/get-countries/", get_countries, name="get_countries"),
+    path("upload-students/", upload_students_csv, name="upload_students_csv"),
 
 
  

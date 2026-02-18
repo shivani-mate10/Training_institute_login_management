@@ -1,5 +1,3 @@
-# your_app/management/commands/archive_students.py
-
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from class_management.models import Enrollments
